@@ -1,0 +1,8 @@
+site_name: "Seizure_data_processing"
+repo_url: "https://github.com/sderooij/seizure_data_processing"
+site_dir: "site"
+docs_dir: "docs"
+
+theme:
+  name: readthedocs
+  include_sidebar: true
