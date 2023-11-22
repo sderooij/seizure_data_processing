@@ -137,4 +137,7 @@ seizure_data_processing/config.py
 local/
 *.out
 
+# seize it notebooks
+notebooks/seize_it.ipynb
+
 
