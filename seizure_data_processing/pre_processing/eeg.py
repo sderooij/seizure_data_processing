@@ -13,13 +13,14 @@ from pathlib import Path
 
 # internal libraries
 from seizure_data_processing.datasets import mit_chb as chb
-from seizure_data_processing.datasets import tusz
+from seizure_data_processing.datasets import tusz, seize_it
 from seizure_data_processing.pre_processing import features as ff
 
 
 class EEG:
+    """EEG class object"""
     # ---------------- Constructor ----------------------------------
-    def __init__(self, filename: str, channels = None, *, dataset=""):
+    def __init__(self, filename: str, channels=None, *, dataset=""):
         """Initialize EEG object by loading an eeg file. The dataset is automatically detected. For now only support for MIT-CHB and TUSZ dataset
 
         Args:
@@ -33,22 +34,63 @@ class EEG:
         self.Fs = None  # array or int
         self.annotations = None  # dataframe with cols start, stop, seiz_type, prob
 
-        self.load()
-        self._num_channels = len(self.channels)
-        self._num_samples = len(self.data[0])
+        # self.load()
+        # self._num_channels = len(self.channels)
+        # self._num_samples = len(self.data[0])
 
         if "chb" in filename:
             self._dataset = "mit-chb"
         elif "s0" in filename:  # change for something better ?
             self._dataset = "tusz"
+        elif "P_ID" in filename:
+            self._dataset = "seize-it"
         else:
             self._dataset = dataset
-        self.annotate()
+        # self.annotate()
 
         self.features = None
 
-    # --------------------- CLASS METHODS -----------------------------------
+    # --------------------- MAGIC METHODS -----------------------------------
+    def __str__(self):
+        return str(self.__class__) + ":" + str(self.__dict__)
 
+    def __repr__(self):
+        return str(self.__class__) + ":" + str(self.__dict__)
+
+    # --------------------- PROPERTIES -----------------------------------
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, data):
+        self._data = data
+        if data is not None and hasattr(data[0], "__len__"):
+            self._num_samples = len(data[0])
+        else:
+            self._num_samples = 0
+
+    @property
+    def channels(self):
+        return self._channels
+
+    @channels.setter
+    def channels(self, channels):
+        self._channels = channels
+        if channels is not None:
+            self._num_channels = len(channels)
+        else:
+            self._num_channels = 0
+
+    @property
+    def num_channels(self):
+        return self._num_channels
+
+    @property
+    def num_samples(self):
+        return self._num_samples
+
+    # --------------------- CLASS METHODS -----------------------------------
     def load(self):
         """load EEG signals from an EDF file
 
@@ -174,8 +216,10 @@ class EEG:
             self.annotations = chb.load_annotations(self.filename)
         elif self._dataset == "tusz":
             self.annotations = tusz.load_annotations(self.filename)
+        elif self._dataset == "seize-it":
+            self.annotations = seize_it.load_annotations(self.filename)
         else:
-            raise Exception("Only mit-chb and tusz datasets are supported.")
+            raise Exception("Dataset not supported for annotation.")
 
         return self
 

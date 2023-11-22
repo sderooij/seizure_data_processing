@@ -7,6 +7,14 @@ import pandas as pd
 
 
 def ann_to_dataframe(seizures):
+    """
+    Convert seizure annotations to a dataframe.
+    Args:
+        seizures: array of seizure annotations (start_time, stop_time, annotation, probability)
+
+    Returns:
+        pd.DataFrame: with columns [start_time, stop_time, seizure_type, probability]
+    """
 
     seizures = np.array(seizures)
     if len(seizures) == 0:
