@@ -28,6 +28,8 @@ class EEG:
             channels (list[str], optional): List of channels to extract. If None all channels are extracted. Defaults to None.
             dataset (str, optional): Name of the EEG dataset. "mit-chb" or "tusz". Defaults to "".
         """
+        self._orig_channels = None
+        self._file_duration = None
         self.filename = filename
         self.channels = channels
         self.data = np.zeros(1)  # channels x time
@@ -108,6 +110,7 @@ class EEG:
 
         # ----------- get channels and fs --------------
         channels = f.getSignalLabels()
+        self._orig_channels = channels
         num_channels = f.signals_in_file
         fs = f.getSampleFrequencies()  # sampling frequency
 
@@ -163,6 +166,8 @@ class EEG:
 
         self.data = np.array(signals, dtype=object)
         self.Fs = float(fs)
+
+        self._file_duration = f.getFileDuration()
 
         f.close()
         return self
@@ -328,6 +333,41 @@ class EEG:
         return
 
     # ----------- "get" methods ----------------
+
+    def get_file_duration(self):
+        try:
+            f = pyedflib.EdfReader(self.filename)
+        except IOError:
+            print("Failed to open %s" % self.filename)
+            raise
+        self._file_duration = f.getFileDuration()
+        f.close()
+        return self._file_duration
+
+    def get_sampling_frequency(self):
+        try:
+            f = pyedflib.EdfReader(self.filename)
+        except IOError:
+            print("Failed to open %s" % self.filename)
+            raise
+        self.Fs = f.getSampleFrequencies()
+        f.close()
+        if np.all(self.Fs == self.Fs[0]):
+            self.Fs = self.Fs[0]
+        return self.Fs
+
+    def get_channels(self):
+        try:
+            f = pyedflib.EdfReader(self.filename)
+        except IOError:
+            print("Failed to open %s" % self.filename)
+            raise
+        channels = f.getSignalLabels()
+        self._orig_channels = channels
+        f.close()
+        return channels
+
+
 
     def get_time(self):
         """Get a time vector for the EEG data

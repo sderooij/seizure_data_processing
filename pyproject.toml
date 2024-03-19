@@ -23,6 +23,7 @@ dependencies = [
     "PyWavelets>=1.1.1",
     "antropy>=0.1.6",
     "pyarrow>=5.0.0",
+    "jax[cpu]>=0.2.21",
 ]
 
 #[project.optional-dependencies]

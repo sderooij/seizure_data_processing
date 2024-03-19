@@ -13,6 +13,7 @@ from functools import partial
 from scipy.signal import welch
 from scipy.stats import skew, kurtosis, entropy
 import antropy as ant
+from scipy.integrate import trapezoid, simps
 
 
 def chunker(arr, size, overlap):
@@ -29,7 +30,7 @@ def df_chunker(seq, size, overlap):
 
 def notch_filter(x, fsamp, freq, axis=-1):
     b, a = signal.iirnotch(freq, 30, fsamp)
-    return signal.filtfilt(b, a, x, axis=axis)
+    return signal.lfilter(b, a, x, axis=axis)
 
 
 def bandpass_filter(x, fsamp, min_freq, max_freq, axis=-1, order=4):
@@ -55,11 +56,11 @@ def bandpass_filter(x, fsamp, min_freq, max_freq, axis=-1, order=4):
     ndarray
         filtered_signal
     """
-    b, a = signal.butter(
-        order, [min_freq, max_freq], btype="bandpass", fs=fsamp, analog=False
+    sos = signal.butter(
+        order, [min_freq, max_freq], btype="bandpass", output='sos', fs=fsamp, analog=False
     )
 
-    return signal.filtfilt(b, a, x, axis=axis)
+    return signal.sosfiltfilt(sos, x, axis=axis)
 
 
 def highpass_filter(x, fsamp, min_freq, axis=-1, order=4):
@@ -83,11 +84,39 @@ def highpass_filter(x, fsamp, min_freq, axis=-1, order=4):
     ndarray
         filtered_signal
     """
-    b, a = signal.butter(
-        order, min_freq, btype="highpass", fs=fsamp, output="ba", analog=False
+    sos = signal.butter(
+        order, min_freq, btype="highpass", fs=fsamp, output="sos", analog=False
     )
 
-    return signal.filtfilt(b, a, x, axis=axis)
+    return signal.sosfiltfilt(sos, x, axis=axis)
+
+
+def lowpass_filter(x, fsamp, max_freq, axis=-1, order=4):
+    """filters the given signal x using a Butterworth bandpass filter
+
+    Parameters
+    ----------
+    x : ndarray
+        signal to filter
+    fsamp : float
+        sampling frequency
+    max_freq : float
+        cut-off frequency lower bound
+    axis : int, optional
+        axis to filter, by default -1  (0 for filter along the row, 1 for along the columns)
+    order : int, optional
+        order of Butterworth filter, by default 4
+
+    Returns
+    -------
+    ndarray
+        filtered_signal
+    """
+    sos = signal.butter(
+        order, max_freq, btype="lowpass", fs=fsamp, output="sos", analog=False
+    )
+
+    return signal.sosfiltfilt(sos, x, axis=axis)
 
 
 def number_zero_crossings(x):
@@ -156,7 +185,7 @@ def rms(x, axis=None):
 
 def mean_power(f, Pxx_den, min_freq, max_freq):
     ind = np.where((f >= min_freq) & (f <= max_freq))[0]
-    return np.sum(Pxx_den[ind, :], axis=0)
+    return simps(Pxx_den[ind, :], dx=f[1] - f[0], axis=0)
 
 
 def dwt_transform(data, wavelet, level=4, axis=0):
@@ -343,26 +372,42 @@ def extract_features(
     min_amplitude=11,
     max_amplitude=150,
 ):
+    """
+    Extract features from the EEG data.
+    Args:
+        eeg: EEG object
+        filter_param: filter parameters, dictionary with keys: min_freq, max_freq, notch_freq
+        window_time: duration of the windows in seconds
+        seiz_overlap: overlap of the seizure windows
+        bckg_overlap: overlap of the background windows
+        epoch_remove: remove bad epochs based on amplitude
+        min_amplitude: if epoch_remove, minimum amplitude to keep
+        max_amplitude: if epoch_remove, maximum amplitude to keep
+
+    Returns:
+        dataframe: dataframe with the features, annotations, start/stop time and filename
+    """
 
     window_length = int(window_time * eeg.Fs)
     seiz_overlap = int(seiz_overlap * window_length)
     bckg_overlap = int(bckg_overlap * window_length)
 
-    filtered_signals = bandpass_filter(
-        eeg.data,
-        eeg.Fs,
-        filter_param["min_freq"],
-        filter_param["max_freq"],
-        axis=1,
-        order=4,
-    )
-    filtered_signals = notch_filter(
-        filtered_signals, eeg.Fs, filter_param["notch_freq"], axis=1
-    ).T
-
     orig_signals = highpass_filter(
         eeg.data, eeg.Fs, filter_param["min_freq"], axis=1, order=4
     ).T
+
+    filtered_signals = lowpass_filter(
+        orig_signals,
+        eeg.Fs,
+        filter_param["max_freq"],
+        axis=0,
+        order=4,
+    )
+
+    if filter_param["notch_freq"] is not None:
+        filtered_signals = notch_filter(
+            filtered_signals, eeg.Fs, filter_param["notch_freq"], axis=0
+        )
 
     time = eeg.get_time()
     labels = eeg.get_labels()
@@ -377,7 +422,7 @@ def extract_features(
     feat_stop_time = []
     while not last:
         # ----------- label and time ------------
-        window_label = 2 * (np.sum(labels[i_start : i_end + 1]) > 0) - 1
+        window_label = 2 * (np.sum(labels[i_start : i_end + 1]) > 0) - 1 # positive if more than 50% of the window is labeled as seizure
         # ----------- epoch ------------
         filtered_epoch = np.asarray(
             filtered_signals[i_start : i_end + 1, :], dtype=float
@@ -398,6 +443,7 @@ def extract_features(
                     )
                 if i_end + 1 > len(time):
                     last = True
+                    break
                 continue
 
         # ------------------ Feature calculation ----------------------------
@@ -422,13 +468,11 @@ def extract_features(
             scaling="density",
         )
         # total power
-        features["total_power"].loc[i_feat] = np.sum(psd, axis=0)
+        features["total_power"].loc[i_feat] = simps(psd, dx=freq[1] - freq[0], axis=0)
         # peak frequency
         features["peak_freq"].loc[i_feat] = freq[np.argmax(psd, axis=0)]
         # mean power in high frequency band
-        features["mean_power_HF"].loc[i_feat] = np.mean(
-            psd[(freq >= 40) & (freq < 80), :], axis=0
-        )
+        features["mean_power_HF"].loc[i_feat] = mean_power(freq, psd, 40, 80)
         # psd filtered in frequency bands
         freq, psd = welch(
             filtered_epoch,
@@ -438,18 +482,10 @@ def extract_features(
             scaling="density",
         )
         # mean power in frequency bands
-        features["mean_power_delta"].loc[i_feat] = np.mean(
-            psd[(freq >= 0.5) & (freq < 4), :], axis=0
-        )
-        features["mean_power_theta"].loc[i_feat] = np.mean(
-            psd[(freq >= 4) & (freq < 8), :], axis=0
-        )
-        features["mean_power_alpha"].loc[i_feat] = np.mean(
-            psd[(freq >= 8) & (freq < 13), :], axis=0
-        )
-        features["mean_power_beta"].loc[i_feat] = np.mean(
-            psd[(freq >= 13) & (freq < 20), :], axis=0
-        )
+        features["mean_power_delta"].loc[i_feat] = mean_power(freq, psd, 0.5, 3)
+        features["mean_power_theta"].loc[i_feat] = mean_power(freq, psd, 4, 8)
+        features["mean_power_alpha"].loc[i_feat] = mean_power(freq, psd, 9, 13)
+        features["mean_power_beta"].loc[i_feat] = mean_power(freq, psd, 14, 20)
         # ------------------- Entropy Features -------------------------------
         # entropy of the power spectral density
         features["spectral_entropy"].loc[i_feat] = ant.spectral_entropy(
