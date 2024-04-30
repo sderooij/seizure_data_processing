@@ -35,6 +35,7 @@ def load_annotations(file: str) -> pd.DataFrame:
 
 if __name__ == "__main__":
     from seizure_data_processing.config import SEIZE_IT_DIR
+
     tsv_file = SEIZE_IT_DIR + "P_ID30/P_ID30_r1_a2.tsv"
 
     ann = load_annotations(tsv_file)

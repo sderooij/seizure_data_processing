@@ -153,6 +153,7 @@ def mean_power(f, Pxx_den, min_freq, max_freq):
 #         bp /= simps(psd, dx=freq_res)
 #     return bp
 
+
 def normalize_feature(feature, method="standard", epoch_time=2, buffer=120, labda=0.92):
     # input: np array (cols: features, rows:epochs), epoch length (s), buffer (s)
     # median decaying memory method or standard scaler
@@ -183,4 +184,3 @@ def normalize_feature(feature, method="standard", epoch_time=2, buffer=120, labd
         raise Exception("this normalization method is not valid.")
 
     return norm_features, scaler
-

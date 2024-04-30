@@ -57,7 +57,12 @@ def bandpass_filter(x, fsamp, min_freq, max_freq, axis=-1, order=4):
         filtered_signal
     """
     sos = signal.butter(
-        order, [min_freq, max_freq], btype="bandpass", output='sos', fs=fsamp, analog=False
+        order,
+        [min_freq, max_freq],
+        btype="bandpass",
+        output="sos",
+        fs=fsamp,
+        analog=False,
     )
 
     return signal.sosfiltfilt(sos, x, axis=axis)
@@ -354,6 +359,11 @@ def initialize_features(cols):
         "mean_power_alpha": pd.DataFrame(columns=cols),
         "mean_power_beta": pd.DataFrame(columns=cols),
         "mean_power_HF": pd.DataFrame(columns=cols),
+        "normalized_power_delta": pd.DataFrame(columns=cols),
+        "normalized_power_theta": pd.DataFrame(columns=cols),
+        "normalized_power_alpha": pd.DataFrame(columns=cols),
+        "normalized_power_beta": pd.DataFrame(columns=cols),
+        "normalized_power_HF": pd.DataFrame(columns=cols),
         "spectral_entropy": pd.DataFrame(columns=cols),
         "line_length": pd.DataFrame(columns=cols),
         "sample_entropy": pd.DataFrame(columns=cols),
@@ -371,6 +381,8 @@ def extract_features(
     epoch_remove=True,
     min_amplitude=11,
     max_amplitude=150,
+    *,
+    filter_order=4
 ):
     """
     Extract features from the EEG data.
@@ -393,7 +405,7 @@ def extract_features(
     bckg_overlap = int(bckg_overlap * window_length)
 
     orig_signals = highpass_filter(
-        eeg.data, eeg.Fs, filter_param["min_freq"], axis=1, order=4
+        eeg.data, eeg.Fs, filter_param["min_freq"], axis=1, order=filter_order
     ).T
 
     filtered_signals = lowpass_filter(
@@ -401,7 +413,7 @@ def extract_features(
         eeg.Fs,
         filter_param["max_freq"],
         axis=0,
-        order=4,
+        order=filter_order,
     )
 
     if filter_param["notch_freq"] is not None:
@@ -422,7 +434,9 @@ def extract_features(
     feat_stop_time = []
     while not last:
         # ----------- label and time ------------
-        window_label = 2 * (np.sum(labels[i_start : i_end + 1]) > 0) - 1 # positive if more than 50% of the window is labeled as seizure
+        window_label = (
+            2 * (np.sum(labels[i_start : i_end + 1]) > 0) - 1
+        )  # positive if more than 50% of the window is labeled as seizure
         # ----------- epoch ------------
         filtered_epoch = np.asarray(
             filtered_signals[i_start : i_end + 1, :], dtype=float
@@ -431,7 +445,7 @@ def extract_features(
         # ---------- remove bad epochs ------------
         # Check minimum and maximum RMS amplitude, remove bad epochs
         if epoch_remove:
-            rms_window = rms(filtered_epoch, axis=None)
+            rms_window = rms(filtered_epoch, axis=0)
             if np.any(rms_window < min_amplitude) or np.any(rms_window > max_amplitude):
                 if window_label == 1:
                     i_start, i_end = update_index(
@@ -482,7 +496,7 @@ def extract_features(
             scaling="density",
         )
         # mean power in frequency bands
-        features["mean_power_delta"].loc[i_feat] = mean_power(freq, psd, 0.5, 3)
+        features["mean_power_delta"].loc[i_feat] = mean_power(freq, psd, 1, 3)
         features["mean_power_theta"].loc[i_feat] = mean_power(freq, psd, 4, 8)
         features["mean_power_alpha"].loc[i_feat] = mean_power(freq, psd, 9, 13)
         features["mean_power_beta"].loc[i_feat] = mean_power(freq, psd, 14, 20)
@@ -515,6 +529,12 @@ def extract_features(
         if i_end + 1 > len(time):
             last = True
         i_feat += 1
+
+    features['normalized_power_alpha'] = features['mean_power_alpha'] / features['total_power']
+    features['normalized_power_beta'] = features['mean_power_beta'] / features['total_power']
+    features['normalized_power_theta'] = features['mean_power_theta'] / features['total_power']
+    features['normalized_power_delta'] = features['mean_power_delta'] / features['total_power']
+    features['normalized_power_HF'] = features['mean_power_HF'] / features['total_power']
 
     # convert to numpy array
     annotations = np.array(annotations)

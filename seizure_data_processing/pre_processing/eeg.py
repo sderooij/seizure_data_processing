@@ -19,6 +19,7 @@ from seizure_data_processing.pre_processing import features as ff
 
 class EEG:
     """EEG class object"""
+
     # ---------------- Constructor ----------------------------------
     def __init__(self, filename: str, channels=None, *, dataset=""):
         """Initialize EEG object by loading an eeg file. The dataset is automatically detected. For now only support for MIT-CHB and TUSZ dataset
@@ -366,8 +367,6 @@ class EEG:
         self._orig_channels = channels
         f.close()
         return channels
-
-
 
     def get_time(self):
         """Get a time vector for the EEG data
