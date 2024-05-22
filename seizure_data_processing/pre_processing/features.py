@@ -535,11 +535,11 @@ def extract_features(
             last = True
         i_feat += 1
 
-    features['normalized_power_alpha'] = features['mean_power_alpha'] / features['total_power']
-    features['normalized_power_beta'] = features['mean_power_beta'] / features['total_power']
-    features['normalized_power_theta'] = features['mean_power_theta'] / features['total_power']
-    features['normalized_power_delta'] = features['mean_power_delta'] / features['total_power']
-    features['normalized_power_HF'] = features['mean_power_HF'] / features['total_power']
+    features['normalized_power_alpha'] = features['mean_power_alpha'] / (features['total_power'] + 1e-10)
+    features['normalized_power_beta'] = features['mean_power_beta'] / (features['total_power']+1e-10)
+    features['normalized_power_theta'] = features['mean_power_theta'] / (features['total_power']+1e-10)
+    features['normalized_power_delta'] = features['mean_power_delta'] / (features['total_power']+1e-10)
+    features['normalized_power_HF'] = features['mean_power_HF'] / (features['total_power']+1e-10)
 
     # convert to numpy array
     annotations = np.array(annotations)
