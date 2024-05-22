@@ -382,6 +382,7 @@ def extract_features(
     min_amplitude=11,
     max_amplitude=150,
     *,
+    channel_for_epoch_remove=None,
     filter_order=4
 ):
     """
@@ -445,7 +446,11 @@ def extract_features(
         # ---------- remove bad epochs ------------
         # Check minimum and maximum RMS amplitude, remove bad epochs
         if epoch_remove:
-            rms_window = rms(filtered_epoch, axis=0)
+            if channel_for_epoch_remove is not None:
+                channel_idx = np.where(eeg.channels == channel_for_epoch_remove)[0][0]
+                rms_window = rms(filtered_epoch[:, channel_idx], axis=0)
+            else:
+                rms_window = rms(filtered_epoch, axis=None)
             if np.any(rms_window < min_amplitude) or np.any(rms_window > max_amplitude):
                 if window_label == 1:
                     i_start, i_end = update_index(
