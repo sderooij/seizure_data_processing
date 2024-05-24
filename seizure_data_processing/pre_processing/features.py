@@ -382,6 +382,7 @@ def extract_features(
     min_amplitude=11,
     max_amplitude=150,
     *,
+    channel_for_epoch_remove=None,
     filter_order=4
 ):
     """
@@ -445,7 +446,13 @@ def extract_features(
         # ---------- remove bad epochs ------------
         # Check minimum and maximum RMS amplitude, remove bad epochs
         if epoch_remove:
-            rms_window = rms(filtered_epoch, axis=0)
+            if channel_for_epoch_remove is not None:
+                channel_idx = np.where(np.array(eeg.channels) == channel_for_epoch_remove)[0][0]
+                # print(channel_idx)
+                # print(filtered_epoch.shape)
+                rms_window = rms(filtered_epoch[:, channel_idx], axis=0)
+            else:
+                rms_window = rms(filtered_epoch, axis=None)
             if np.any(rms_window < min_amplitude) or np.any(rms_window > max_amplitude):
                 if window_label == 1:
                     i_start, i_end = update_index(
@@ -530,11 +537,11 @@ def extract_features(
             last = True
         i_feat += 1
 
-    features['normalized_power_alpha'] = features['mean_power_alpha'] / features['total_power']
-    features['normalized_power_beta'] = features['mean_power_beta'] / features['total_power']
-    features['normalized_power_theta'] = features['mean_power_theta'] / features['total_power']
-    features['normalized_power_delta'] = features['mean_power_delta'] / features['total_power']
-    features['normalized_power_HF'] = features['mean_power_HF'] / features['total_power']
+    features['normalized_power_alpha'] = features['mean_power_alpha'] / (features['total_power'] + 1e-10)
+    features['normalized_power_beta'] = features['mean_power_beta'] / (features['total_power']+1e-10)
+    features['normalized_power_theta'] = features['mean_power_theta'] / (features['total_power']+1e-10)
+    features['normalized_power_delta'] = features['mean_power_delta'] / (features['total_power']+1e-10)
+    features['normalized_power_HF'] = features['mean_power_HF'] / (features['total_power']+1e-10)
 
     # convert to numpy array
     annotations = np.array(annotations)
