@@ -35,40 +35,28 @@ def event_scoring(
     Returns:
         (dict) the scores for the test data. Defaults to Recall and FPR.
     """
-    # filter out pos_overlap
-    # desired_overlap = bckg_overlap
-    # idx = remove_overlap(test_labels, seiz_overlap, bckg_overlap, desired_overlap)
-    # test_features = test_features[idx]
-    # test_labels = test_labels[idx]
-    #
-    # # get the predictions
-    # predicted_labels = model.predict(test_features)
-    # move sliding window over the predictions
+
     window_size = int(min_duration / (sample_duration*(1-overlap)))
     predicted_labels = np.squeeze(predicted_labels)
     sliding_view_pred = np.lib.stride_tricks.sliding_window_view(
         predicted_labels, window_size
     )
-    # sum_pred = np.sum(sliding_view_pred, axis=1)
+
     min_pos_samp = int(pos_percent * window_size)
-    # do the same for the labels
+
     test_labels = np.squeeze(test_labels)
     sliding_view_labels = np.lib.stride_tricks.sliding_window_view(
         test_labels, window_size
     )
-    # sum_labels = np.sum(sliding_view_labels, axis=1)
 
-    num_true_pos = 0
-    num_false_pos = 0
-    # last_pos = False
-    # last_true_pos = False
     n_arp = arp / (sample_duration*(1-overlap))
     arp_counter = 0
     alarm = False
     n_alarm = 0
     alarms = []     # store the alarms  0: false alarm, 1: true alarm
-    for idx, window in enumerate(sliding_view_pred):        # TODO: what if false positive becomes true positive?
-        if np.sum(window==1) >= min_pos_samp and not alarm:
+
+    for idx, window in enumerate(sliding_view_pred):
+        if np.sum(window==1) >= min_pos_samp and not alarm: # trigger alarm
             alarm = True
             n_alarm += 1
             arp_counter = 0
@@ -76,58 +64,16 @@ def event_scoring(
                 alarms.append(1)
             else:
                 alarms.append(0)
-        elif np.sum(window==1) >= min_pos_samp and alarm:
+        elif np.sum(window==1) >= min_pos_samp and alarm:   # alarm already triggered
             if np.sum(sliding_view_labels[idx]==1) >= 1 and alarms[n_alarm-1] == 0:  # false to true alarm
                 alarms[n_alarm-1] = 1
             arp_counter = 0
-        elif alarm and arp_counter <= n_arp:
+        elif alarm and arp_counter <= n_arp:            # count time since alarm (for absolute refractory period)
             arp_counter += 1
         else:
-            alarm = False
+            alarm = False                           # reset alarm
             arp_counter += 1
 
-        # if np.sum(window) >= min_pos_samp and arp_counter >= n_arp:
-        #     if last_pos:
-        #         continue
-        #     else:
-        #         if np.sum(sliding_view_labels[idx]) >= -window_size+1: # at least one positive label in the window
-        #             num_true_pos += 1
-        #             last_true_pos = True
-        #         else:
-        #             num_false_pos += 1
-        #             last_true_pos = False
-        #
-        #         arp_counter = 0
-        #         last_pos = True
-        # # elif (last_pos == True) and (np.sum(sliding_view_labels[idx]) >= -window_size+1):
-        # #     continue
-        # elif np.sum(window) >= min_pos_samp and arp_counter < n_arp:
-        #     arp_counter += 1
-        #     if np.sum(sliding_view_labels[idx]) >= -window_size+1 and not last_true_pos:
-        #         num_true_pos += 1
-        #         num_false_pos -= 1
-        #         last_true_pos = True
-        #
-        # else:
-        #     last_pos = False
-        #     arp_counter += 1
-
-    # # check for clusters of positive labels
-    # for idx, val in enumerate(sum_pred):
-    #     if val >= min_pos_samp:
-    #         if last_pos:
-    #             continue
-    #         else:  # new detection
-    #             if sum_labels[idx] >= 0:
-    #                 num_true_pos += 1
-    #             else:
-    #                 num_false_pos += 1
-    #             last_pos = True
-    #     elif (last_pos == True) and (sum_labels[idx] >= 0):
-    #         continue
-    #     else:
-    #         last_pos = False
-    #
     # # count the number of true positives
     counter = collections.Counter(alarms)
     num_false_pos = counter[0]
@@ -138,7 +84,7 @@ def event_scoring(
         num_true_pos <= num_seiz
     ), f"number of true positives {num_true_pos} is greater than number of seizures {num_seiz}"
     # get the labels
-    recall = num_true_pos / num_seiz
+    recall = num_true_pos / num_seiz * 100
     total_time = (len(test_labels) * sample_duration) * (1 - overlap)  # in seconds
     # get false alarm rate per 24 hours
     fpr = num_false_pos / len(test_labels)  # per sample
