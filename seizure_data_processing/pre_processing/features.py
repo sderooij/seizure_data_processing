@@ -447,7 +447,9 @@ def extract_features(
         # Check minimum and maximum RMS amplitude, remove bad epochs
         if epoch_remove:
             if channel_for_epoch_remove is not None:
-                channel_idx = np.where(eeg.channels == channel_for_epoch_remove)[0][0]
+                channel_idx = np.where(np.array(eeg.channels) == channel_for_epoch_remove)[0][0]
+                # print(channel_idx)
+                # print(filtered_epoch.shape)
                 rms_window = rms(filtered_epoch[:, channel_idx], axis=0)
             else:
                 rms_window = rms(filtered_epoch, axis=None)
