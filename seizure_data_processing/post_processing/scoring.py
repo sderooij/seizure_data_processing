@@ -20,6 +20,7 @@ def event_scoring(
     min_duration=10.0,
     pos_percent=0.8,
     arp=30.0,
+    total_duration=None,
 ):
     """
     Calculate the scores for the test data using an event based scoring method.
@@ -85,10 +86,11 @@ def event_scoring(
     ), f"number of true positives {num_true_pos} is greater than number of seizures {num_seiz}"
     # get the labels
     recall = num_true_pos / num_seiz * 100
-    total_time = (len(test_labels) * sample_duration) * (1 - overlap)  # in seconds
+    if total_duration is None:
+        total_duration = (len(test_labels) * sample_duration) * (1 - overlap)  # in seconds
     # get false alarm rate per 24 hours
     fpr = num_false_pos / len(test_labels)  # per sample
-    far24 = (num_false_pos / total_time) * 3600 * 24
+    far24 = (num_false_pos / total_duration) * 3600 * 24
 
     scores = {"Recall": recall, "FA/24hr": far24, "FPR": fpr}
 

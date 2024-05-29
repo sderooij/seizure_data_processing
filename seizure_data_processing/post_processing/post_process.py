@@ -3,7 +3,7 @@
 """
 
 import numpy as np
-
+from sklearn.metrics import roc_curve, precision_recall_curve, f1_score
 
 def moving_average_filter(data, window_size):
     """
@@ -98,6 +98,30 @@ def stitch_seizures(predicted_labels, arp, sample_duration, overlap):
             stitched_labels[end:start] = 1
 
     return stitched_labels
+
+
+def optimize_bias(predictions, labels, metric='roc', *, N=500):
+    if metric == 'roc':
+        fpr, tpr, thresholds = roc_curve(labels, predictions)
+        bias = thresholds[np.argmax(tpr - fpr)] # using Youden's J statistic
+        bias = -bias
+
+    elif metric == 'pr':
+        precision, recall, thresholds = precision_recall_curve(labels, predictions, drop_intermediate=True)
+        # get indices of zero and nan values
+        zero_idx = np.where(precision <= 1e-5)[0]
+        nan_idx = np.where(np.isnan(precision))[0]
+        # remove zero and nan values
+        precision = np.delete(precision, np.concatenate((zero_idx, nan_idx)))
+        recall = np.delete(recall, np.concatenate((zero_idx, nan_idx)))
+        thresholds = np.delete(thresholds, np.concatenate((zero_idx, nan_idx)))
+
+        fscore = (2 * precision * recall) / (precision + recall)
+        bias = thresholds[np.argmax(fscore)]
+
+        assert np.isclose(f1_score(labels, np.sign(predictions-bias)+(predictions-bias == 0)),np.max(fscore))
+        bias = -bias
+    return bias
 
 
 if __name__ == "__main__":
