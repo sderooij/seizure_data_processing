@@ -190,7 +190,8 @@ def rms(x, axis=None):
 
 def mean_power(f, Pxx_den, min_freq, max_freq):
     ind = np.where((f >= min_freq) & (f <= max_freq))[0]
-    return simps(Pxx_den[ind, :], dx=f[1] - f[0], axis=0)
+    # return simps(Pxx_den[ind, :], dx=f[1] - f[0], axis=0)
+    return np.sum(Pxx_den[ind, :], axis=0)
 
 
 def dwt_transform(data, wavelet, level=4, axis=0):
@@ -274,17 +275,28 @@ def line_length(x, axis=0):
     return np.sum(diff, axis=axis)
 
 
-# def shannon_entropy(x, axis=0):
-#     """Calculate the Shannon entropy of the data. Using scipy.stats.entropy.
-#
-#     Args:
-#         x (ndarray): Data epoch (N, N_chan)
-#         axis (int, optional): axis along which to calculate the feature. Defaults to 0.
-#
-#     Returns:
-#         ndarray: (N_chan,) array with the Shannon entropy
-#     """
-#
+def shannon_entropy(x, axis=0):
+    """Calculate the Shannon entropy of the data. Using scipy.stats.entropy.
+
+    Args:
+        x (ndarray): Data epoch (N, N_chan)
+        axis (int, optional): axis along which to calculate the feature. Defaults to 0.
+
+    Returns:
+        ndarray: (N_chan,) array with the Shannon entropy
+    """
+    # calculate probabilities
+    # counts = np.apply_along_axis(np.histogram, axis=axis, arr=x, bins="auto", density=True)
+    counts = []
+    ent = []
+    for i in range(x.shape[1]):
+        cnt_i, _ = np.histogram(x[:, i], density=True)
+        ent.append(entropy(cnt_i))
+
+    # for ch in range(x.shape[1]):
+    #     counts
+    # counts, bins = np.histogram(x, density=True)
+    return np.array(ent)
 
 
 def sample_entropy(x, axis=0):
@@ -301,6 +313,26 @@ def sample_entropy(x, axis=0):
     return np.apply_along_axis(
         ant.sample_entropy, axis=axis, arr=x, order=2, metric="chebyshev"
     )
+
+
+def asymmetry_psd(psd1, psd2, f, min_freq=0, max_freq=50):
+    """Calculate the asymmetry of the power spectral density.
+
+    Args:
+        psd1 (ndarray): power spectral density 1
+        psd2 (ndarray): power spectral density 2
+        f (ndarray): frequency vector
+        min_freq (int, optional): minimum frequency to consider. Defaults to 0.
+        max_freq (int, optional): maximum frequency to consider. Defaults to 50.
+
+    Returns:
+        ndarray: asymmetry
+    """
+    idx = np.where((f >= min_freq) & (f <= max_freq))[0]
+    sum1 = np.sum(psd1[idx], axis=0)
+    sum2 = np.sum(psd2[idx], axis=0)
+    return (sum1 - sum2) / (sum1 + sum2)
+
 
 
 def normalize_feature(feature, method="standard", epoch_time=2, buffer=120, labda=0.92):
@@ -365,8 +397,9 @@ def initialize_features(cols):
         "normalized_power_beta": pd.DataFrame(columns=cols),
         "normalized_power_HF": pd.DataFrame(columns=cols),
         "spectral_entropy": pd.DataFrame(columns=cols),
-        "line_length": pd.DataFrame(columns=cols),
+        # "line_length": pd.DataFrame(columns=cols),
         "sample_entropy": pd.DataFrame(columns=cols),
+        "shannon_entropy": pd.DataFrame(columns=cols),
     }
 
     return features
@@ -383,6 +416,7 @@ def extract_features(
     max_amplitude=150,
     *,
     channel_for_epoch_remove=None,
+    asymmetry_channels=None,
     filter_order=4
 ):
     """
@@ -425,6 +459,15 @@ def extract_features(
     time = eeg.get_time()
     labels = eeg.get_labels()
     features = initialize_features(eeg.channels)
+    # check if asymmetry channels are given
+    if asymmetry_channels is not None:
+        asymmetry_channels = np.array(asymmetry_channels)
+        asymm_idx = np.where(np.isin(np.array(eeg.channels), asymmetry_channels))[0]
+        features["asymmetry_delta"] = pd.DataFrame(columns=eeg.channels)
+        features["asymmetry_theta"] = pd.DataFrame(columns=eeg.channels)
+        features["asymmetry_alpha"] = pd.DataFrame(columns=eeg.channels)
+        features["asymmetry_beta"] = pd.DataFrame(columns=eeg.channels)
+
 
     i_start = 0
     i_end = window_length
@@ -477,7 +520,7 @@ def extract_features(
             filtered_epoch, axis=0, nan_policy="raise"
         )
         features["RMS_amplitude"].loc[i_feat] = rms(filtered_epoch, axis=0)
-        features["line_length"].loc[i_feat] = line_length(filtered_epoch, axis=0)
+        # features["line_length"].loc[i_feat] = line_length(filtered_epoch, axis=0)
 
         # Frequency domain features
         # power spectral density
@@ -489,7 +532,7 @@ def extract_features(
             scaling="density",
         )
         # total power
-        features["total_power"].loc[i_feat] = simps(psd, dx=freq[1] - freq[0], axis=0)
+        # features["total_power"].loc[i_feat] = simps(psd, dx=freq[1] - freq[0], axis=0)
         # peak frequency
         features["peak_freq"].loc[i_feat] = freq[np.argmax(psd, axis=0)]
         # mean power in high frequency band
@@ -503,10 +546,16 @@ def extract_features(
             scaling="density",
         )
         # mean power in frequency bands
+        features['total_power'].loc[i_feat] = mean_power(freq, psd, 1, 30)
         features["mean_power_delta"].loc[i_feat] = mean_power(freq, psd, 1, 3)
         features["mean_power_theta"].loc[i_feat] = mean_power(freq, psd, 4, 8)
         features["mean_power_alpha"].loc[i_feat] = mean_power(freq, psd, 9, 13)
         features["mean_power_beta"].loc[i_feat] = mean_power(freq, psd, 14, 20)
+        if asymmetry_channels is not None:
+            features["asymmetry_delta"].loc[i_feat] = asymmetry_psd(psd[:,asymm_idx[0]], psd[:, asymm_idx[1]], freq, 1, 3)
+            features["asymmetry_theta"].loc[i_feat] = asymmetry_psd(psd[:,asymm_idx[0]], psd[:, asymm_idx[1]], freq, 4, 8)
+            features["asymmetry_alpha"].loc[i_feat] = asymmetry_psd(psd[:,asymm_idx[0]], psd[:, asymm_idx[1]], freq, 9, 13)
+            features["asymmetry_beta"].loc[i_feat] = asymmetry_psd(psd[:,asymm_idx[0]], psd[:, asymm_idx[1]], freq, 14, 20)
         # ------------------- Entropy Features -------------------------------
         # entropy of the power spectral density
         features["spectral_entropy"].loc[i_feat] = ant.spectral_entropy(
@@ -519,9 +568,8 @@ def extract_features(
         )
         # sample entropy
         features["sample_entropy"].loc[i_feat] = sample_entropy(filtered_epoch, axis=0)
-        # # shannon entropy
-        # psd_norm = psd / psd.sum(axis=0, keepdims=True)
-        #
+        # shannon entropy
+        features["shannon_entropy"].loc[i_feat] = shannon_entropy(filtered_epoch, axis=0)
 
         # ------------------ Annotations ----------------------------
         annotations.append(window_label)
@@ -537,7 +585,7 @@ def extract_features(
             last = True
         i_feat += 1
 
-    features['normalized_power_alpha'] = features['mean_power_alpha'] / (features['total_power'] + 1e-10)
+    features['normalized_power_alpha'] = features['mean_power_alpha'] / (features['total_power'] + 1e-10)   # add small number to avoid division by zero
     features['normalized_power_beta'] = features['mean_power_beta'] / (features['total_power']+1e-10)
     features['normalized_power_theta'] = features['mean_power_theta'] / (features['total_power']+1e-10)
     features['normalized_power_delta'] = features['mean_power_delta'] / (features['total_power']+1e-10)
