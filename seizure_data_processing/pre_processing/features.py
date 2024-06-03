@@ -354,17 +354,17 @@ def normalize_feature(feature, method="standard", epoch_time=2, buffer=120, labd
             ) + labda * old_z
             norm_features[i, :] = feature[i, :] / z
 
-        scaler = []
+        return norm_features
 
     elif method == "standard":
         scaler = StandardScaler()
         scaler.fit(feature)
         norm_features = scaler.transform(feature)
+        return norm_features, scaler
 
     else:
         raise Exception("this normalization method is not valid.")
 
-    return norm_features, scaler
 
 
 def initialize_features(cols):
