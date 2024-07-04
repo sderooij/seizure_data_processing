@@ -12,6 +12,19 @@ def chunker(seq, size):
     return (seq[pos : pos + size] for pos in range(0, len(seq), size))
 
 
+def get_scores(output, true_labels, metrics: dict):
+    predicted_labels = np.sign(output).astype(int)
+    # check for zeros in predicted labels
+    scores = {}
+    for key, value in metrics.items():
+        if value == "roc_auc" or value == "average_precision":
+            scores[key] = get_scorer(value)._score_func(true_labels, output)
+        else:
+            scores[key] = get_scorer(value)._score_func(true_labels, predicted_labels)
+
+    return scores
+
+
 def event_scoring(
     predicted_labels,
     test_labels,
