@@ -6,6 +6,7 @@
 
 import numpy as np
 import collections
+from sklearn.metrics import get_scorer
 
 
 def chunker(seq, size):
