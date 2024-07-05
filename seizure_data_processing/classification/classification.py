@@ -207,7 +207,6 @@ class SeizureClassifier:
             groups=self.groups,
             scoring=all_scores,
             cv=self.cv_obj,
-            n_jobs=self.n_jobs,
             return_estimator=True,
             return_train_score=True,
             return_indices=True,
@@ -333,6 +332,7 @@ def get_scaler(scaler_name):
     else:
         raise ValueError("Scaler not recognized")
     return scaler
+
 
 def get_classifier(classifier_name):
     """
