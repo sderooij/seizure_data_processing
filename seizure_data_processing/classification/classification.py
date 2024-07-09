@@ -273,6 +273,16 @@ class SeizureClassifier:
         self.scores = scores
         return self
 
+    def print_scores(self):
+        if self.scores is None:
+            print("Scores not calculated. Run score method first.")
+        for key in self.scores.keys():
+            print(f"Group: {key}")
+            print(self.scores[key])
+        print("Overall")
+        print(self.scores['overall'])
+        return
+
     def save_local(self, file):
         with open(file, "wb") as f:
             pickle.dump(self, f)
