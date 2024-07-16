@@ -52,7 +52,6 @@ class SeizureClassifier:
         tags={},
         n_jobs=-1,
         verbose=0,
-        ovlp={"seiz": 0.5, "bckg": 0.5},
     ):
         self.classifier = classifier
         self.hyperparams = hyperparams
@@ -84,7 +83,6 @@ class SeizureClassifier:
         self.groups = None
         self.predictions = None
         self.scores = None
-        self.ovlp = ovlp
 
         if self.grid_search.casefold() == "none".casefold() or self.grid_search is None:
             self.classifier.set_params(**self.hyperparams)
@@ -258,6 +256,20 @@ class SeizureClassifier:
             predictions.loc[group_idx, 'true_label'] = self.labels[test_idx]
             scores[unique_groups[i]] = get_scores(predictions.loc[group_idx, 'predicted_output'].to_numpy(),
                                                          self.labels[test_idx], all_scores)
+            # if self.model_type == "PI":
+            #     scores[unique_groups[i]].update(
+            #         event_scoring(
+            #             predictions.loc[group_idx, 'predicted_output'].to_numpy(),
+            #             self.labels[test_idx],
+            #             overlap=0.5,
+            #             sample_duration=2.,
+            #             arp=10.0,
+            #             min_duration=10.,
+            #             pos_percent=0.8,
+            #             total_duration=total_duration,
+            #         )
+            #     )
+
 
         predictions.loc[:, 'predicted_label'] = np.sign(predictions['predicted_output'])
 
