@@ -52,6 +52,7 @@ class SeizureClassifier:
         tags={},
         n_jobs=-1,
         verbose=0,
+        ovlp={"seiz": 0.5, "bckg": 0.5},
     ):
         self.classifier = classifier
         self.hyperparams = hyperparams
@@ -83,6 +84,7 @@ class SeizureClassifier:
         self.groups = None
         self.predictions = None
         self.scores = None
+        self.ovlp = ovlp
 
         if self.grid_search.casefold() == "none".casefold() or self.grid_search is None:
             self.classifier.set_params(**self.hyperparams)
@@ -215,6 +217,7 @@ class SeizureClassifier:
 
         val_dict['groups'] = np.unique(self.groups)
         self.crossval_output = val_dict
+        self.estimator = val_dict["estimator"]
 
         return self
 
@@ -249,7 +252,7 @@ class SeizureClassifier:
                 self.cv_obj.split(X=self.features, y=self.labels, groups=self.groups)
         ):
             group_idx = predictions['group'] == unique_groups[i]
-            predictions.loc[group_idx, 'predicted_output'] = self.crossval_output["estimator"][i].decision_function(
+            predictions.loc[group_idx, 'predicted_output'] = self.estimator[i].decision_function(
                 self.features[test_idx, :]
             )
             predictions.loc[group_idx, 'true_label'] = self.labels[test_idx]

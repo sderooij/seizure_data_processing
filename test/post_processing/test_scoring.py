@@ -37,7 +37,7 @@ def test_event_scoring():
         arp,
     )
     assert scores["Recall"] == 1.0
-    assert scores["FPR"] == 0.0
+    assert scores["FA/hr"] == 0.0
 
     # case 2 --- predicted_labels != test_labels
     predicted_labels = np.concatenate(
@@ -51,11 +51,11 @@ def test_event_scoring():
     )
     test_labels = np.concatenate(
         [
-            np.ones((10, 1)),
-            -1 * np.ones((20, 1)),
-            np.ones((10, 1)),
-            -1 * np.ones((20, 1)),
-            np.ones((10, 1)),
+            np.ones((9, 1)),
+            -1 * np.ones((22, 1)),
+            np.ones((8, 1)),
+            -1 * np.ones((22, 1)),
+            np.ones((9, 1)),
         ]
     )
     scores = event_scoring(
@@ -68,7 +68,7 @@ def test_event_scoring():
         arp=0,
     )
     assert np.equal(scores["Recall"], 0.0)
-    assert scores["FPR"] > 0.0
+    assert scores["FA/hr"] > 0.0
 
     # case 3 --- predicted_labels != test_labels in some parts
     predicted_labels = np.concatenate(
@@ -98,7 +98,7 @@ def test_event_scoring():
         pos_percent,
     )
     assert scores["Recall"] == 0.5
-    assert scores["FPR"] == 0.0
+    assert scores["FA/hr"] == 0.0
 
     # case 4 --- predicted_labels != test_labels in some parts
     predicted_labels = np.concatenate(
@@ -129,7 +129,7 @@ def test_event_scoring():
         arp,
     )
     assert np.equal(scores["Recall"], 1.0)
-    assert np.equal(scores["FPR"], 0.0)
+    assert np.equal(scores["FA/hr"], 0.0)
 
     # case 5 --- 1 false positive
     predicted_labels = np.concatenate(
@@ -158,10 +158,10 @@ def test_event_scoring():
         sample_duration,
         min_duration,
         pos_percent,
-        arp=11,
+        arp=20,
     )
     assert np.equal(scores["Recall"], 1.0)
-    assert np.equal(scores["FPR"], 0.0)
+    assert np.equal(scores["FA/hr"], 0.0)
 
     # case 6 --- if close not false positi
     predicted_labels = np.concatenate(
@@ -194,4 +194,9 @@ def test_event_scoring():
         arp,
     )
     assert np.equal(scores["Recall"], 1.0)
-    assert np.equal(scores["FPR"], 0.0)
+    assert np.equal(scores["FA/hr"], 0.0)
+
+
+if __name__ == "__main__":
+    test_event_scoring()
+    print("scoring.py is correct")

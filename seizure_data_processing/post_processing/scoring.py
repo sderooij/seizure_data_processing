@@ -69,19 +69,36 @@ def event_scoring(
     alarm = False
     n_alarm = 0
     alarms = []     # store the alarms  0: false alarm, 1: true alarm
-
+    seiz_counter = 0
+    true_alarm = False
+    num_true_pos = 0
+    num_false_pos = 0
+    last_pos = False
     for idx, window in enumerate(sliding_view_pred):
+        # check if there is a seizure in the window
+        if np.sum(sliding_view_labels[idx]==1) >= 1 and not true_alarm:
+            true_alarm = True
+            seiz_counter += 1
+        elif np.sum(sliding_view_labels[idx]==1) == 0 and true_alarm:
+            true_alarm = False
+
         if np.sum(window==1) >= min_pos_samp and not alarm: # trigger alarm
             alarm = True
-            n_alarm += 1
-            arp_counter = 0
-            if np.sum(sliding_view_labels[idx]==1) >= 1:    # true alarm if at least one positive label in the window
-                alarms.append(1)
+            # n_alarm += 1
+            arp_counter = 0     # reset the absolute refractory period counter
+            if true_alarm:    # true positive
+                num_true_pos += 1
+                last_pos = True
             else:
-                alarms.append(0)
+                num_false_pos += 1
+                last_pos = False
         elif np.sum(window==1) >= min_pos_samp and alarm:   # alarm already triggered
-            if np.sum(sliding_view_labels[idx]==1) >= 1 and alarms[n_alarm-1] == 0:  # false to true alarm
-                alarms[n_alarm-1] = 1
+            if true_alarm and not last_pos:
+                num_true_pos += 1
+                num_false_pos -= 1
+                last_pos = True
+            arp_counter = 0
+        elif alarm and true_alarm and np.sum(window==1) > 0:
             arp_counter = 0
         elif alarm and arp_counter <= n_arp:            # count time since alarm (for absolute refractory period)
             arp_counter += 1
@@ -90,16 +107,16 @@ def event_scoring(
             arp_counter += 1
 
     # # count the number of true positives
-    counter = collections.Counter(alarms)
-    num_false_pos = counter[0]
-    num_true_pos = counter[1]
+    # counter = collections.Counter(alarms)
+    # num_false_pos = counter[0]
+    # num_true_pos = counter[1]
     # count total number of seizure events
     num_seiz = np.sum(np.diff(test_labels) == 2)  # count transitions from -1 to 1
     assert (
         num_true_pos <= num_seiz
     ), f"number of true positives {num_true_pos} is greater than number of seizures {num_seiz}"
     # get the labels
-    recall = num_true_pos / num_seiz * 100
+    recall = num_true_pos / num_seiz
     if total_duration is None:
         total_duration = (len(test_labels) * sample_duration) * (1 - overlap)  # in seconds
     # get false alarm rate per 24 hours

@@ -408,8 +408,8 @@ def log_parent_run(
         mlflow.log_param("feature_file", feature_file)
         mlflow.log_param("group_file", group_file)
 
-        # log the outputs
-        predictions.to_parquet(f"{temp_dir}/output.parquet")  # TODO: check this
+        # log the predictions to a parquet file
+        predictions.to_parquet(f"{temp_dir}/output.parquet")
         mlflow.log_artifact(f"{temp_dir}/output.parquet")
 
         # Log the scores
