@@ -105,8 +105,9 @@ def event_scoring(
     # get false alarm rate per 24 hours
     fpr = num_false_pos / len(test_labels)  # per sample
     far24 = (num_false_pos / total_duration) * 3600 * 24
+    far1 = (num_false_pos / total_duration) * 3600
 
-    scores = {"Recall": recall, "FA/24hr": far24, "FPR": fpr}
+    scores = {"Recall": recall, "FA/24hr": far24, "FA/hr": far1}
 
     return scores
 

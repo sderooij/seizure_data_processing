@@ -397,6 +397,7 @@ def log_parent_run(
     scores,
     child_runs=True,
     patient=None,
+    temp_dir='temp/'
 ):
 
     with mlflow.start_run(experiment_id=experiment_id, run_name=run_name) as run:
@@ -408,13 +409,13 @@ def log_parent_run(
         mlflow.log_param("group_file", group_file)
 
         # log the outputs
-        predictions.to_parquet("temp/output.parquet")  # TODO: check this
-        mlflow.log_artifact("temp/output.parquet")
+        predictions.to_parquet(f"{temp_dir}/output.parquet")  # TODO: check this
+        mlflow.log_artifact(f"{temp_dir}/output.parquet")
 
         # Log the scores
         # log mean and std of scores over the groups
         for key, value in val_dict.items():
-            if isinstance(value, np.ndarray):
+            if isinstance(value, np.ndarray) and not isinstance(value[0], str):
                 mlflow.log_metric(f"{key}_mean", np.mean(value))
                 mlflow.log_metric(f"{key}_std", np.std(value))
             else:

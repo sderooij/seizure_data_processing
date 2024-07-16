@@ -288,7 +288,8 @@ class SeizureClassifier:
             pickle.dump(self, f)
         return
 
-    def log_mlflow(self, tracking_url, experiment_name, *, feature_file=None, group_file=None, total_duration=None):
+    def log_mlflow(self, tracking_url, experiment_name, *, feature_file=None, group_file=None, total_duration=None,
+                   temp_dir='temp/'):
         import seizure_data_processing.classification.mlflow_utils as mutils
         if self.scores is None:
             self.score(feature_file=feature_file,group_file=group_file, total_duration=total_duration)
@@ -317,6 +318,7 @@ class SeizureClassifier:
             scores=self.scores,
             child_runs=True,
             patient=self.patient,
+            temp_dir=temp_dir,
         )
         return
 
