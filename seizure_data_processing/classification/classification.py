@@ -90,7 +90,7 @@ class SeizureClassifier:
         self._check_attributes()
 
         self._create_pipeline()
-        self._load_data(mode='train')
+        self._load_data(mode="train")
 
     def _check_attributes(self):
         if self.feature_file is None:
@@ -100,7 +100,9 @@ class SeizureClassifier:
         if self.dataset is None:
             warnings.warn("Dataset not set.")
 
-        if (self.model_type == "PS" or self.model_type=="PF") and self.patient is None:
+        if (
+            self.model_type == "PS" or self.model_type == "PF"
+        ) and self.patient is None:
             warnings.warn("Patient not set.")
 
         # check that every value in self.preprocess_steps has a fit_transform method
@@ -138,7 +140,9 @@ class SeizureClassifier:
         return self
 
     def _set_grid_search(self):
-        hyperparams = {f"clf__{key}": self.hyperparams[key] for key in self.hyperparams.keys()}
+        hyperparams = {
+            f"clf__{key}": self.hyperparams[key] for key in self.hyperparams.keys()
+        }
         if self.grid_search.casefold() == "full".casefold():
             self.pipeline = GridSearchCV(
                 self.pipeline,
@@ -162,9 +166,18 @@ class SeizureClassifier:
 
         return self
 
-    def _load_data(self, *, delete_pre_post_ictal=False, mode='train', annotation_column='annotation'):   # TODO: patient-independent (list of feature files)
+    def _load_data(
+        self,
+        *,
+        delete_pre_post_ictal=False,
+        mode="train",
+        annotation_column="annotation",
+    ):  # TODO: patient-independent (list of feature files)
         feat_df, group_df = get_features(
-            self.feature_file, self.group_file, cv_type=self.model_type, patient_id=self.patient
+            self.feature_file,
+            self.group_file,
+            cv_type=self.model_type,
+            patient_id=self.patient,
         )
 
         if delete_pre_post_ictal:
@@ -172,19 +185,23 @@ class SeizureClassifier:
                 (feat_df["pre_ictal"] == False) & (feat_df["post_ictal"] == False)
             ]
             group_df = group_df.loc[feat_df.index]
-        if mode == 'train':
+        if mode == "train":
             # only select features that contain the train flag
             idx_train = feat_df["train"] == True
-            feat_df = feat_df.loc[idx_train,:]
-            group_df = group_df.loc[idx_train,:]
-        elif mode == 'test':
+            feat_df = feat_df.loc[idx_train, :]
+            group_df = group_df.loc[idx_train, :]
+        elif mode == "test":
             # only select features that contain the test flag
             idx_test = feat_df["test"] == True
-            feat_df = feat_df.loc[idx_test,:]
-            group_df = group_df.loc[idx_test,:]
+            feat_df = feat_df.loc[idx_test, :]
+            group_df = group_df.loc[idx_test, :]
 
         features, labels, groups = extract_feature_group_labels(
-            feat_df, group_df, cv_type=self.model_type, delim_feat_chan="|", annotation_column=annotation_column
+            feat_df,
+            group_df,
+            cv_type=self.model_type,
+            delim_feat_chan="|",
+            annotation_column=annotation_column,
         )
         self.features = features
         self.labels = labels
@@ -213,13 +230,20 @@ class SeizureClassifier:
             verbose=self.verbose,
         )
 
-        val_dict['groups'] = np.unique(self.groups)
+        val_dict["groups"] = np.unique(self.groups)
         self.crossval_output = val_dict
         self.estimator = val_dict["estimator"]
 
         return self
 
-    def score(self, *, total_duration=None, feature_file=None, group_file=None, annotation_column="annotation"):
+    def score(
+        self,
+        *,
+        total_duration=None,
+        feature_file=None,
+        group_file=None,
+        annotation_column="annotation",
+    ):
         all_scores = {
             "AUC": "roc_auc",
             "Accuracy": "accuracy",
@@ -238,24 +262,27 @@ class SeizureClassifier:
             # self.features = feat_df.loc[:, feat_cols].to_numpy()
             # self.labels = feat_df.loc[:, "annotation"].to_numpy()
             # self.groups = group_df.loc[:, "group"].to_numpy().squeeze()
-            self._load_data(mode='test', annotation_column=annotation_column)
+            self._load_data(mode="test", annotation_column=annotation_column)
 
         scores = {}
         predictions = pd.DataFrame(
-            columns=['group', 'predicted_output', 'predicted_label', 'true_label']
+            columns=["group", "predicted_output", "predicted_label", "true_label"]
         )
-        predictions.loc[:,'group'] = self.groups
+        predictions.loc[:, "group"] = self.groups
         unique_groups = np.unique(self.groups)
         for i, (train_idx, test_idx) in enumerate(
-                self.cv_obj.split(X=self.features, y=self.labels, groups=self.groups)
+            self.cv_obj.split(X=self.features, y=self.labels, groups=self.groups)
         ):
-            group_idx = predictions['group'] == unique_groups[i]
-            predictions.loc[group_idx, 'predicted_output'] = self.estimator[i].decision_function(
-                self.features[test_idx, :]
+            group_idx = predictions["group"] == unique_groups[i]
+            predictions.loc[group_idx, "predicted_output"] = self.estimator[
+                i
+            ].decision_function(self.features[test_idx, :])
+            predictions.loc[group_idx, "true_label"] = self.labels[test_idx]
+            scores[unique_groups[i]] = get_scores(
+                predictions.loc[group_idx, "predicted_output"].to_numpy(),
+                self.labels[test_idx],
+                all_scores,
             )
-            predictions.loc[group_idx, 'true_label'] = self.labels[test_idx]
-            scores[unique_groups[i]] = get_scores(predictions.loc[group_idx, 'predicted_output'].to_numpy(),
-                                                         self.labels[test_idx], all_scores)
             # if self.model_type == "PI":
             #     scores[unique_groups[i]].update(
             #         event_scoring(
@@ -270,16 +297,15 @@ class SeizureClassifier:
             #         )
             #     )
 
+        predictions.loc[:, "predicted_label"] = np.sign(predictions["predicted_output"])
 
-        predictions.loc[:, 'predicted_label'] = np.sign(predictions['predicted_output'])
-
-        scores['overall'] = event_scoring(
-            predictions['predicted_label'].to_numpy(),
+        scores["overall"] = event_scoring(
+            predictions["predicted_label"].to_numpy(),
             self.labels,
             overlap=0.5,
-            sample_duration=2.,
+            sample_duration=2.0,
             arp=10.0,
-            min_duration=10.,
+            min_duration=10.0,
             pos_percent=0.8,
             total_duration=total_duration,
         )
@@ -295,7 +321,7 @@ class SeizureClassifier:
             print(f"Group: {key}")
             print(self.scores[key])
         print("Overall")
-        print(self.scores['overall'])
+        print(self.scores["overall"])
         return
 
     def save_local(self, file):
@@ -303,11 +329,24 @@ class SeizureClassifier:
             pickle.dump(self, f)
         return
 
-    def log_mlflow(self, tracking_url, experiment_name, *, feature_file=None, group_file=None, total_duration=None,
-                   temp_dir='temp/'):
+    def log_mlflow(
+        self,
+        tracking_url,
+        experiment_name,
+        *,
+        feature_file=None,
+        group_file=None,
+        total_duration=None,
+        temp_dir="temp/",
+    ):
         import seizure_data_processing.classification.mlflow_utils as mutils
+
         if self.scores is None:
-            self.score(feature_file=feature_file,group_file=group_file, total_duration=total_duration)
+            self.score(
+                feature_file=feature_file,
+                group_file=group_file,
+                total_duration=total_duration,
+            )
 
         run_name = mutils.generate_run_name(
             classifier_name=self.classifier.__class__.__name__,
@@ -336,6 +375,7 @@ class SeizureClassifier:
             temp_dir=temp_dir,
         )
         return
+
 
 def get_scaler(scaler_name):
     """
@@ -636,7 +676,12 @@ def get_features(feature_file, group_file, cv_type="PS", *, patient_id=None):
 
 
 def extract_feature_group_labels(
-    feat_df, group_df, *, delim_feat_chan="|", cv_type="PS", annotation_column="annotation",
+    feat_df,
+    group_df,
+    *,
+    delim_feat_chan="|",
+    cv_type="PS",
+    annotation_column="annotation",
 ):
     """
     Extract the feature and group labels from the feature and group dataframe.

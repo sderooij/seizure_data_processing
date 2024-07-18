@@ -5,6 +5,7 @@
 import numpy as np
 from sklearn.metrics import roc_curve, precision_recall_curve, f1_score
 
+
 def moving_average_filter(data, window_size):
     """
     Apply a moving average filter to the data.
@@ -22,7 +23,9 @@ def moving_average_filter(data, window_size):
         The filtered data.
     """
     # pad data to reduce boundary effects and keep the same length
-    data_padded = np.pad(data, (window_size // 2, window_size - 1 - window_size // 2), mode="edge")
+    data_padded = np.pad(
+        data, (window_size // 2, window_size - 1 - window_size // 2), mode="edge"
+    )
     return np.convolve(data_padded, np.ones(window_size) / window_size, mode="valid")
 
 
@@ -82,7 +85,7 @@ def stitch_seizures(predicted_labels, arp, sample_duration, overlap):
 
     diff = np.diff(predicted_labels)
     # find the start and end of the seizures
-    start_seiz = np.where(diff == 2)[0]+1
+    start_seiz = np.where(diff == 2)[0] + 1
     end_seiz = np.where(diff == -2)[0]
     # check first and last value of the predicted labels
     if predicted_labels[0] == 1:
@@ -100,14 +103,16 @@ def stitch_seizures(predicted_labels, arp, sample_duration, overlap):
     return stitched_labels
 
 
-def optimize_bias(predictions, labels, metric='roc', *, N=500):
-    if metric == 'roc':
+def optimize_bias(predictions, labels, metric="roc", *, N=500):
+    if metric == "roc":
         fpr, tpr, thresholds = roc_curve(labels, predictions)
-        bias = thresholds[np.argmax(tpr - fpr)] # using Youden's J statistic
+        bias = thresholds[np.argmax(tpr - fpr)]  # using Youden's J statistic
         bias = -bias
 
-    elif metric == 'pr':
-        precision, recall, thresholds = precision_recall_curve(labels, predictions, drop_intermediate=True)
+    elif metric == "pr":
+        precision, recall, thresholds = precision_recall_curve(
+            labels, predictions, drop_intermediate=True
+        )
         # get indices of zero and nan values
         zero_idx = np.where(precision <= 1e-5)[0]
         nan_idx = np.where(np.isnan(precision))[0]
@@ -119,7 +124,10 @@ def optimize_bias(predictions, labels, metric='roc', *, N=500):
         fscore = (2 * precision * recall) / (precision + recall)
         bias = thresholds[np.argmax(fscore)]
 
-        assert np.isclose(f1_score(labels, np.sign(predictions-bias)+(predictions-bias == 0)),np.max(fscore))
+        assert np.isclose(
+            f1_score(labels, np.sign(predictions - bias) + (predictions - bias == 0)),
+            np.max(fscore),
+        )
         bias = -bias
     return bias
 
@@ -154,5 +162,5 @@ if __name__ == "__main__":
     ).squeeze()
     arp = 6
     sample_duration = 1
-    overlap = 0.
+    overlap = 0.0
     new_labels = stitch_seizures(predicted_labels, arp, sample_duration, overlap)

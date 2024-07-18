@@ -334,7 +334,6 @@ def asymmetry_psd(psd1, psd2, f, min_freq=0, max_freq=50):
     return (sum1 - sum2) / (sum1 + sum2)
 
 
-
 def normalize_feature(feature, method="standard", epoch_time=2, buffer=120, labda=0.92):
     # input: np array (cols: features, rows:epochs), epoch length (s), buffer (s)
     # median decaying memory method or standard scaler
@@ -364,7 +363,6 @@ def normalize_feature(feature, method="standard", epoch_time=2, buffer=120, labd
 
     else:
         raise Exception("this normalization method is not valid.")
-
 
 
 def initialize_features(cols):
@@ -468,7 +466,6 @@ def extract_features(
         features["asymmetry_alpha"] = pd.DataFrame(columns=eeg.channels)
         features["asymmetry_beta"] = pd.DataFrame(columns=eeg.channels)
 
-
     i_start = 0
     i_end = window_length
     last = False
@@ -490,7 +487,9 @@ def extract_features(
         # Check minimum and maximum RMS amplitude, remove bad epochs
         if epoch_remove:
             if channel_for_epoch_remove is not None:
-                channel_idx = np.where(np.array(eeg.channels) == channel_for_epoch_remove)[0][0]
+                channel_idx = np.where(
+                    np.array(eeg.channels) == channel_for_epoch_remove
+                )[0][0]
                 # print(channel_idx)
                 # print(filtered_epoch.shape)
                 rms_window = rms(filtered_epoch[:, channel_idx], axis=0)
@@ -546,16 +545,24 @@ def extract_features(
             scaling="density",
         )
         # mean power in frequency bands
-        features['total_power'].loc[i_feat] = mean_power(freq, psd, 1, 30)
+        features["total_power"].loc[i_feat] = mean_power(freq, psd, 1, 30)
         features["mean_power_delta"].loc[i_feat] = mean_power(freq, psd, 1, 3)
         features["mean_power_theta"].loc[i_feat] = mean_power(freq, psd, 4, 8)
         features["mean_power_alpha"].loc[i_feat] = mean_power(freq, psd, 9, 13)
         features["mean_power_beta"].loc[i_feat] = mean_power(freq, psd, 14, 20)
         if asymmetry_channels is not None:
-            features["asymmetry_delta"].loc[i_feat] = asymmetry_psd(psd[:,asymm_idx[0]], psd[:, asymm_idx[1]], freq, 1, 3)
-            features["asymmetry_theta"].loc[i_feat] = asymmetry_psd(psd[:,asymm_idx[0]], psd[:, asymm_idx[1]], freq, 4, 8)
-            features["asymmetry_alpha"].loc[i_feat] = asymmetry_psd(psd[:,asymm_idx[0]], psd[:, asymm_idx[1]], freq, 9, 13)
-            features["asymmetry_beta"].loc[i_feat] = asymmetry_psd(psd[:,asymm_idx[0]], psd[:, asymm_idx[1]], freq, 14, 20)
+            features["asymmetry_delta"].loc[i_feat] = asymmetry_psd(
+                psd[:, asymm_idx[0]], psd[:, asymm_idx[1]], freq, 1, 3
+            )
+            features["asymmetry_theta"].loc[i_feat] = asymmetry_psd(
+                psd[:, asymm_idx[0]], psd[:, asymm_idx[1]], freq, 4, 8
+            )
+            features["asymmetry_alpha"].loc[i_feat] = asymmetry_psd(
+                psd[:, asymm_idx[0]], psd[:, asymm_idx[1]], freq, 9, 13
+            )
+            features["asymmetry_beta"].loc[i_feat] = asymmetry_psd(
+                psd[:, asymm_idx[0]], psd[:, asymm_idx[1]], freq, 14, 20
+            )
         # ------------------- Entropy Features -------------------------------
         # entropy of the power spectral density
         features["spectral_entropy"].loc[i_feat] = ant.spectral_entropy(
@@ -569,7 +576,9 @@ def extract_features(
         # sample entropy
         features["sample_entropy"].loc[i_feat] = sample_entropy(filtered_epoch, axis=0)
         # shannon entropy
-        features["shannon_entropy"].loc[i_feat] = shannon_entropy(filtered_epoch, axis=0)
+        features["shannon_entropy"].loc[i_feat] = shannon_entropy(
+            filtered_epoch, axis=0
+        )
 
         # ------------------ Annotations ----------------------------
         annotations.append(window_label)
@@ -585,11 +594,21 @@ def extract_features(
             last = True
         i_feat += 1
 
-    features['normalized_power_alpha'] = features['mean_power_alpha'] / (features['total_power'] + 1e-10)   # add small number to avoid division by zero
-    features['normalized_power_beta'] = features['mean_power_beta'] / (features['total_power']+1e-10)
-    features['normalized_power_theta'] = features['mean_power_theta'] / (features['total_power']+1e-10)
-    features['normalized_power_delta'] = features['mean_power_delta'] / (features['total_power']+1e-10)
-    features['normalized_power_HF'] = features['mean_power_HF'] / (features['total_power']+1e-10)
+    features["normalized_power_alpha"] = features["mean_power_alpha"] / (
+        features["total_power"] + 1e-10
+    )  # add small number to avoid division by zero
+    features["normalized_power_beta"] = features["mean_power_beta"] / (
+        features["total_power"] + 1e-10
+    )
+    features["normalized_power_theta"] = features["mean_power_theta"] / (
+        features["total_power"] + 1e-10
+    )
+    features["normalized_power_delta"] = features["mean_power_delta"] / (
+        features["total_power"] + 1e-10
+    )
+    features["normalized_power_HF"] = features["mean_power_HF"] / (
+        features["total_power"] + 1e-10
+    )
 
     # convert to numpy array
     annotations = np.array(annotations)

@@ -124,6 +124,7 @@ def get_scaler(scaler_name):
         raise ValueError("Scaler not recognized")
     return scaler
 
+
 def get_sampler(sampler_name):
     """
     Get the sampler from the sampler name.
@@ -334,11 +335,13 @@ def log_group_run(
             )
         else:
             model_info = mlflow.sklearn.log_model(
-                sk_model=estimator, artifact_path="sk_model",
+                sk_model=estimator,
+                artifact_path="sk_model",
                 # signature=signature
             )
 
     return None
+
 
 def log_group_runs(
     val_dict,
@@ -368,16 +371,18 @@ def log_group_runs(
     unique_groups = np.unique(groups)
     for i, estimator in enumerate(val_dict["estimator"]):
         group_id = unique_groups[i]
-        results.append(log_group_run(
-            estimator,
-            group_id,
-            model_type,
-            classifier_name,
-            patient,
-            tags,
-            scores[group_id],
-            groups,
-        ))
+        results.append(
+            log_group_run(
+                estimator,
+                group_id,
+                model_type,
+                classifier_name,
+                patient,
+                tags,
+                scores[group_id],
+                groups,
+            )
+        )
 
     return results
 
@@ -397,7 +402,7 @@ def log_parent_run(
     scores,
     child_runs=True,
     patient=None,
-    temp_dir='temp/'
+    temp_dir="temp/",
 ):
 
     with mlflow.start_run(experiment_id=experiment_id, run_name=run_name) as run:
@@ -469,6 +474,6 @@ def log_parent_run(
             #     pos_percent=0.8,
             # )
 
-        mlflow.log_metrics(scores['overall'])
+        mlflow.log_metrics(scores["overall"])
 
     return None

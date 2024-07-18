@@ -29,6 +29,7 @@ def test_remove_overlap():
     )
     assert np.array_equal(new_labels, des_labels)
 
+
 def test_stitch_seizures():
     predicted_labels = np.concatenate(
         [
@@ -42,7 +43,7 @@ def test_stitch_seizures():
     )
     arp = 6
     sample_duration = 1
-    overlap = 0.
+    overlap = 0.0
     new_labels = stitch_seizures(predicted_labels, arp, sample_duration, overlap)
     des_labels = np.concatenate(
         [
