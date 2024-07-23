@@ -90,7 +90,7 @@ class SeizureClassifier:
         self._check_attributes()
 
         self._create_pipeline()
-        self._load_data(mode="train")
+        # self._load_data(mode="train")
 
     def _check_attributes(self):
         if self.feature_file is None:
@@ -208,7 +208,12 @@ class SeizureClassifier:
         self.groups = groups
         return self
 
-    def cross_validate(self):
+    def cross_validate(self, *, feature_file=None, group_file=None):
+        if feature_file is not None:
+            self.feature_file = feature_file
+        if group_file is not None:
+            self.group_file = group_file
+        self._load_data(mode="train", annotation_column="annotation")
         all_scores = {
             "AUC": "roc_auc",
             "Accuracy": "accuracy",
@@ -232,17 +237,70 @@ class SeizureClassifier:
 
         val_dict["groups"] = np.unique(self.groups)
         self.crossval_output = val_dict
-        self.estimator = val_dict["estimator"]
+        self.estimator = {}
+        for i, group in enumerate(val_dict["groups"]):
+            group_idx = np.where(self.groups == group)[0]
+            assert np.array_equal(group_idx, val_dict['indices']['test'][i]), ("Mismatch in group indices, "
+                                                                               "something went wrong.")
+            self.estimator[str(group)] = val_dict["estimator"][i]
 
         return self
+
+    def predict(self, feature_file, group_file, *, mode='test', annotation_column='annotation'):
+
+        feat_df, group_df = get_features(feature_file, group_file, cv_type=self.model_type, patient_id=self.patient)
+
+        if feature_file == group_file:
+            if self.model_type == 'PI':
+                group_col = [col for col in feat_df.columns if 'patient' in col.lower()]
+            elif self.model_type == 'PS':
+                group_col = [col for col in feat_df.columns if 'group' in col.lower()]
+            else:
+                raise ValueError('Model type not recognized')
+            del group_df
+        else:
+            feat_df = pd.read_parquet(feature_file).sort_values('index')
+            group_df = pd.read_parquet(group_file).sort_values('index')
+            if self.model_type == 'PI':
+                group_col = [col for col in group_df.columns if 'patient' in col.lower()]
+            elif self.model_type == 'PS':
+                group_col = [col for col in group_df.columns if 'group' in col.lower()]
+            else:
+                raise ValueError('Model type not recognized')
+            feat_df[group_col[0]] = group_df.loc[:, group_col[0]].copy()
+            del group_df
+
+        if mode == 'train':
+            idx_train = feat_df['train'] == True
+            feat_df = feat_df.loc[idx_train, :]
+        elif mode == 'test':
+            idx_test = feat_df['test'] == True
+            feat_df = feat_df.loc[idx_test, :]
+
+        feat_cols = [col for col in feat_df.columns if '|' in col]
+        inf_cols = ['index', 'start_time', 'stop_time', 'filename', annotation_column, group_col[0]]
+        info_df = feat_df.loc[:, inf_cols].copy()
+        info_df['predicted_output'] = np.nan
+        info_df['predicted_label'] = np.nan
+        unique_groups = np.unique(info_df[group_col[0]])
+
+        for i, group in enumerate(unique_groups):
+            test_idx = info_df[info_df[group_col[0]] == group].index
+            features = feat_df.loc[test_idx, feat_cols].to_numpy()
+            predictions = self.estimator[str(group)].decision_function(features)
+            info_df.loc[test_idx, 'predicted_output'] = predictions
+            info_df.loc[test_idx, 'predicted_label'] = np.sign(predictions)
+
+        self.predictions = info_df
+        # rename annotation column to true_label and group_col to group
+        self.predictions.rename(columns={annotation_column: 'true_label', group_col[0]: 'group'}, inplace=True)
+        return self.predictions
 
     def score(
         self,
         *,
+        predictions=None,
         total_duration=None,
-        feature_file=None,
-        group_file=None,
-        annotation_column="annotation",
     ):
         all_scores = {
             "AUC": "roc_auc",
@@ -252,63 +310,36 @@ class SeizureClassifier:
             "Recall": "recall",
             "average_precision": "average_precision",
         }
-        if feature_file is not None and group_file is not None:
-            # self.feature_file = feature_file
-            # self.group_file = group_file
-            # feat_df, group_df = get_features(
-            #     self.feature_file, self.group_file, cv_type=self.model_type, patient_id=self.patient
-            # )
-            # feat_cols = [col for col in feat_df.columns if "|" in col]
-            # self.features = feat_df.loc[:, feat_cols].to_numpy()
-            # self.labels = feat_df.loc[:, "annotation"].to_numpy()
-            # self.groups = group_df.loc[:, "group"].to_numpy().squeeze()
-            self._load_data(mode="test", annotation_column=annotation_column)
-
         scores = {}
-        predictions = pd.DataFrame(
-            columns=["group", "predicted_output", "predicted_label", "true_label"]
-        )
-        predictions.loc[:, "group"] = self.groups
-        unique_groups = np.unique(self.groups)
-        for i, (train_idx, test_idx) in enumerate(
-            self.cv_obj.split(X=self.features, y=self.labels, groups=self.groups)
-        ):
-            group_idx = predictions["group"] == unique_groups[i]
-            predictions.loc[group_idx, "predicted_output"] = self.estimator[
-                i
-            ].decision_function(self.features[test_idx, :])
-            predictions.loc[group_idx, "true_label"] = self.labels[test_idx]
-            scores[unique_groups[i]] = get_scores(
-                predictions.loc[group_idx, "predicted_output"].to_numpy(),
-                self.labels[test_idx],
-                all_scores,
-            )
-            # if self.model_type == "PI":
-            #     scores[unique_groups[i]].update(
-            #         event_scoring(
-            #             predictions.loc[group_idx, 'predicted_output'].to_numpy(),
-            #             self.labels[test_idx],
-            #             overlap=0.5,
-            #             sample_duration=2.,
-            #             arp=10.0,
-            #             min_duration=10.,
-            #             pos_percent=0.8,
-            #             total_duration=total_duration,
-            #         )
-            #     )
+        if predictions is None:
+            predictions = self.predictions
+
+        unique_groups = np.unique(self.predictions['group'])
+        if isinstance(self.cv_obj, LeaveOneGroupOut):
+            for i, group in enumerate(unique_groups):
+                group_idx = predictions['group'] == group
+                scores[group] = get_scores(
+                    predictions.loc[group_idx, "predicted_output"].to_numpy(),
+                    predictions.loc[group_idx, "true_label"].to_numpy(),
+                    all_scores,
+                )
+
+        else:
+            raise NotImplementedError
 
         predictions.loc[:, "predicted_label"] = np.sign(predictions["predicted_output"])
 
-        scores["overall"] = event_scoring(
-            predictions["predicted_label"].to_numpy(),
-            self.labels,
-            overlap=0.5,
-            sample_duration=2.0,
-            arp=10.0,
-            min_duration=10.0,
-            pos_percent=0.8,
-            total_duration=total_duration,
-        )
+        if total_duration is not None:
+            scores["overall"] = event_scoring(
+                predictions["predicted_label"].to_numpy(),
+                self.labels,
+                overlap=0.5,
+                sample_duration=2.0,
+                arp=10.0,
+                min_duration=10.0,
+                pos_percent=0.8,
+                total_duration=total_duration,
+            )
 
         self.predictions = predictions
         self.scores = scores
@@ -318,10 +349,7 @@ class SeizureClassifier:
         if self.scores is None:
             print("Scores not calculated. Run score method first.")
         for key in self.scores.keys():
-            print(f"Group: {key}")
-            print(self.scores[key])
-        print("Overall")
-        print(self.scores["overall"])
+            print(f"{key}: {self.scores[key]}")
         return
 
     def save_local(self, file):
@@ -394,6 +422,9 @@ def get_scaler(scaler_name):
         from sklearn.preprocessing import StandardScaler
 
         scaler = StandardScaler()
+    elif scaler_name == 'max-abs':
+        from sklearn.preprocessing import MaxAbsScaler
+        scaler = MaxAbsScaler()
     elif scaler_name == "none":
         return None
     else:
@@ -653,7 +684,7 @@ def get_features(feature_file, group_file, cv_type="PS", *, patient_id=None):
             feat_df = pd.read_parquet(feature_file)
         else:
             feat_df = pd.read_parquet(
-                feature_file, filters=[("Patient", "=", patient_id)]
+                feature_file, filters=[("patient", "=", patient_id)]
             ).sort_values("index")
 
         if group_file == feature_file:
@@ -662,7 +693,7 @@ def get_features(feature_file, group_file, cv_type="PS", *, patient_id=None):
             )  # shallow copy if groups in feature file
         else:
             group_df = pd.read_parquet(
-                group_file, filters=[("Patient", "=", patient_id)]
+                group_file, filters=[("patient", "=", patient_id)]
             ).sort_values("index")
 
     elif cv_type == "PI":
