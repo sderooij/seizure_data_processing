@@ -24,7 +24,7 @@ def parse_annotations(summary_file, edf_file, *, dataframe=False):
         Exception: If edf file is not found in the summary file.
 
     Returns:
-        tuple or DataFrame: of shape (start_time, stop_time, seizure_type, probability)
+        tuple or DataFrame: of shape (start_time, stop_time, annotation, probability)
     """
 
     ext = os.path.splitext(summary_file)[1]
@@ -87,7 +87,7 @@ def load_annotations(file: str):
         file (str): edf file to be annotated
 
     Returns:
-        DataFrame: (start_time, stop_time, seizure_type, probability)
+        DataFrame: (start_time, stop_time, annotation, probability)
     """
 
     if os.path.exists(file.replace(".edf", ".tse_bi")):

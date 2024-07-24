@@ -107,7 +107,7 @@ def load_annotations(file: str) -> pd.DataFrame:
         file (str): edf file to annotate
 
     Returns:
-        pd.DataFrame: with columns [start_time, stop_time, seizure_type, probability]
+        pd.DataFrame: with columns [start_time, stop_time, annotation, probability]
     """
 
     if ".edf" in file:

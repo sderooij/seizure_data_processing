@@ -155,8 +155,8 @@ def event_scoring(
 def labels_to_events(
     predicted_labels,
     time,
-    arp,
-    pos_percent,
+    arp=10.0,
+    pos_percent=0.8,
     min_duration=10.0,
     sample_duration=2.0,
     overlap=0.5,
@@ -191,11 +191,11 @@ def labels_to_events(
         }
     )
     # initialize events dataframe
-    events = pd.DataFrame(columns=["start", "end", "annotation"])
+    events = []
     # create a sliding window view of the data
     alarm = False
     arp_counter = arp
-    for window in df.rolling(window=window_size):
+    for window in df.rolling(window=window_size, min_periods=window_size):  # check rolling functionality
         # check if the window contains a seizure
         if (
             np.sum(window["predicted_labels"] == 1) >= min_pos_samp
@@ -206,24 +206,25 @@ def labels_to_events(
             start_seiz = window["start_time"].iloc[0]
             end_seiz = window["stop_time"].iloc[-1]
             # add the event to the events dataframe
-            events = events.append(
-                {"start": start_seiz, "end": end_seiz, "annotation": "seiz"},
-                ignore_index=True,
+            events.append({"start": start_seiz, "end": end_seiz, "annotation": "seiz"}
             )
             arp_counter = 0
         elif np.sum(window["predicted_labels"] == 1) >= min_pos_samp and alarm:
             arp_counter = 0
             # modify end time of the last event
             end_seiz = window["stop_time"].iloc[-1]
-            events.iloc[-1]["end"] = end_seiz
+            events[-1]["end"] = end_seiz
         elif np.sum(window["predicted_labels"] == 1) <= 1 and alarm:
             arp_counter += 1
             end_seiz = window["start_time"].iloc[0]
-            events.iloc[-1]["end"] = end_seiz
+            events[-1]["end"] = end_seiz
             alarm = False
         else:
             arp_counter += 1
-
+    if len(events)==0:
+        events = pd.DataFrame(columns=["start", "end", "annotation"])
+    else:
+        events = pd.DataFrame(events)
     if to_file:
         if file_name.endswith(".tsv"):
             events.to_csv(file_name, sep="\t", index=False)
@@ -231,6 +232,55 @@ def labels_to_events(
             events.to_csv(file_name, index=False)
 
     return events
+
+
+def any_ovlp(hyp, ref):
+    """
+    Any overlap event scoring. For now all seizure types are permissible.
+    Args:
+        hyp: hypothesis annotations (start, stop, annotation)
+        ref: reference annotations (start, stop, annotation)
+
+    Returns:
+        tuple (hits, misses, false_alarms)
+    """
+
+    hits = 0
+    misses = 0
+    false_alarms = 0
+
+    for i, event in enumerate(ref):
+        hyp_events = get_events(hyp, event["start"], event["stop"])
+        if len(hyp_events) == 0 or np.all(hyp_events["annotation"] == "bckg"):
+            misses += 1
+        else:
+            hits += 1
+
+    for i, event in enumerate(hyp):
+        ref_events = get_events(ref, event["start"], event["stop"])
+        if len(ref_events) == 0 or np.all(ref_events["annotation"] == "bckg"):
+            false_alarms += 1
+
+    return hits, misses, false_alarms
+
+
+def get_events(events, start, stop, *, mode="any-ovlp"):
+    """
+    Get the events that overlap with the start and stop times.
+    Args:
+        events: pd.DataFrame with columns ['start_time', 'stop_time', 'annotation', (opt) 'comments',
+        (opt) 'probability']
+        start: float, start time
+        stop: float, stop time
+        mode: str, the mode of operation. Defaults to "any-ovlp". (TODO: implement other modes)
+
+    Returns:
+        pd.DataFrame with the events that overlap with the start and stop times.
+    """
+    events = events[(events["stop_time"] >= start) & (events["start_time"] <= stop)]
+    return events
+
+
 
 
 if __name__ == "__main__":
