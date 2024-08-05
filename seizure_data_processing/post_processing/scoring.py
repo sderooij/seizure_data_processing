@@ -117,7 +117,7 @@ def event_scoring(
                 num_false_pos -= 1
                 last_pos = True
             arp_counter = 0
-        elif alarm and true_alarm and np.sum(window == 1) > 0:
+        elif alarm and true_alarm:
             arp_counter = 0
         elif (
             alarm and arp_counter <= n_arp
@@ -125,6 +125,7 @@ def event_scoring(
             arp_counter += 1
         else:
             alarm = False  # reset alarm
+            last_pos = False
             arp_counter += 1
 
     # # count the number of true positives
@@ -234,6 +235,64 @@ def labels_to_events(
     return events
 
 
+def labels_to_events_v2(predicted_labels,
+    start_time,
+    total_duration,
+    arp=10.0,
+    pos_percent=0.8,
+    min_duration=10.0,
+    sample_duration=2.0,
+    overlap=0.5,
+    to_file=False,
+    file_name=None,
+    to_dataframe=False):
+    """
+    Convert the model output to seizure events with start and end times.
+    Args:
+        predicted_labels:
+        start_time:
+        total_duration:
+        arp:
+        pos_percent:
+        min_duration:
+        sample_duration:
+        overlap:
+
+    Returns:
+        (list, list) start and stop times of the seizures
+    """
+    # include del
+    # create a full time index for all the start times
+    time_index = np.arange(0, total_duration-sample_duration+1*overlap, sample_duration * (1 - overlap))
+    # get indices of the start times
+    start_indices = np.searchsorted(time_index, start_time)
+    full_labels = np.ones_like(time_index)*(-1)
+    full_labels[start_indices] = predicted_labels
+    window = int(min_duration / (sample_duration * (1 - overlap)))
+    min_pos_samp = int(pos_percent * window)
+    seiz_start = []
+    seiz_stop = []
+    start=True
+    for k in range(window, len(full_labels)):
+        if np.sum(full_labels[k-window:k] == 1) >= min_pos_samp and (start or seiz_stop[-1] < time_index[k-window]):
+            start=False
+            seiz_start.append(time_index[k-min_pos_samp])
+            while len(full_labels) >= k and np.sum(full_labels[k-window:k] == 1) >= min_pos_samp: #get end time
+                k+=1
+            seiz_stop.append(time_index[k])
+
+    if not to_dataframe:
+        return seiz_start, seiz_stop
+    else:
+        events = pd.DataFrame({"start_time": seiz_start, "stop_time": seiz_stop, "annotation": "seiz"})
+        if to_file:
+            if file_name.endswith(".tsv"):
+                events.to_csv(file_name, sep="\t", index=False)
+            else:
+                events.to_csv(file_name, index=False)
+        return events
+
+
 def any_ovlp(hyp, ref):
     """
     Any overlap event scoring. For now all seizure types are permissible.
@@ -249,15 +308,15 @@ def any_ovlp(hyp, ref):
     misses = 0
     false_alarms = 0
 
-    for i, event in enumerate(ref):
-        hyp_events = get_events(hyp, event["start"], event["stop"])
+    for i, event in ref.iterrows():
+        hyp_events = get_events(hyp, event["start_time"], event["stop_time"])
         if len(hyp_events) == 0 or np.all(hyp_events["annotation"] == "bckg"):
             misses += 1
         else:
             hits += 1
 
-    for i, event in enumerate(hyp):
-        ref_events = get_events(ref, event["start"], event["stop"])
+    for i, event in hyp.iterrows():
+        ref_events = get_events(ref, event["start_time"], event["stop_time"])
         if len(ref_events) == 0 or np.all(ref_events["annotation"] == "bckg"):
             false_alarms += 1
 

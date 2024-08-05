@@ -323,7 +323,11 @@ def log_group_run(
         if hasattr(estimator, "best_params_"):
             mlflow.log_params(estimator.best_params_)
         else:
-            mlflow.log_params(estimator.get_params())
+            params = estimator.get_params()
+            if "clf" in params.keys():
+                # get params with "clf__" prefix without the "w_init" parameter
+                params = {key: params[key] for key in params.keys() if "clf__" in key and "w_init" not in key}
+            mlflow.log_params(params)
         # Log the scores #TODO: write a function to log the scores
         mlflow.log_metrics(scores)
         # Log the model
@@ -474,6 +478,6 @@ def log_parent_run(
             #     pos_percent=0.8,
             # )
 
-        mlflow.log_metrics(scores["overall"])
+        # mlflow.log_metrics(scores["overall"])
 
     return None
