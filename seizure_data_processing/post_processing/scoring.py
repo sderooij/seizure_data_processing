@@ -153,122 +153,43 @@ def event_scoring(
     return scores
 
 
-def labels_to_events(
-    predicted_labels,
-    time,
-    arp=10.0,
-    pos_percent=0.8,
-    min_duration=10.0,
-    sample_duration=2.0,
-    overlap=0.5,
-    to_file=False,
-    file_name=None,
-):
+def labels_to_events(predicted_labels,
+                        start_time,
+                        total_duration,
+                        arp=10.0,
+                        pos_percent=0.8,
+                        min_duration=10.0,
+                        seglen=2.0,
+                        overlap=0.5,
+                        to_file=False,
+                        file_name=None,
+                        to_dataframe=False):
     """
     Convert the model output to seizure events with start and end times.
     Args:
-        predicted_labels: np.ndarray, The model output.
-        time: pd.DataFrame with start and end times of the samples
-        arp: Absolute refractory period, minimal time between two consecutive seizures.
-        pos_percent: Required percentage of positive samples in a window to trigger an alarm.
-        min_duration: Minimal duration of a seizure.
-        sample_duration: Length of a sample in seconds.
-        overlap: float, Overlap between segments.
-        to_file: bool, Whether to save the events to a file.
-        file_name: str, The name of the file to save the events to, typically ends with '.tsv' or '.csv'.
-
-    Returns:
-        pd.DataFrame
-    """
-    window_size = int(min_duration / (sample_duration * (1 - overlap)))
-    min_pos_samp = int(pos_percent * window_size)
-    predicted_labels = np.squeeze(predicted_labels)
-    # combine prediction, time and true labels
-    df = pd.DataFrame(
-        {
-            "start_time": time["start_time"].to_numpy(),
-            "stop_time": time["stop_time"].to_numpy(),
-            "predicted_labels": predicted_labels,
-        }
-    )
-    # initialize events dataframe
-    events = []
-    # create a sliding window view of the data
-    alarm = False
-    arp_counter = arp
-    for window in df.rolling(window=window_size, min_periods=window_size):  # check rolling functionality
-        # check if the window contains a seizure
-        if (
-            np.sum(window["predicted_labels"] == 1) >= min_pos_samp
-            and not alarm
-            and arp_counter >= arp
-        ):
-            alarm = True
-            start_seiz = window["start_time"].iloc[0]
-            end_seiz = window["stop_time"].iloc[-1]
-            # add the event to the events dataframe
-            events.append({"start": start_seiz, "end": end_seiz, "annotation": "seiz"}
-            )
-            arp_counter = 0
-        elif np.sum(window["predicted_labels"] == 1) >= min_pos_samp and alarm:
-            arp_counter = 0
-            # modify end time of the last event
-            end_seiz = window["stop_time"].iloc[-1]
-            events[-1]["end"] = end_seiz
-        elif np.sum(window["predicted_labels"] == 1) <= 1 and alarm:
-            arp_counter += 1
-            end_seiz = window["start_time"].iloc[0]
-            events[-1]["end"] = end_seiz
-            alarm = False
-        else:
-            arp_counter += 1
-    if len(events)==0:
-        events = pd.DataFrame(columns=["start", "end", "annotation"])
-    else:
-        events = pd.DataFrame(events)
-    if to_file:
-        if file_name.endswith(".tsv"):
-            events.to_csv(file_name, sep="\t", index=False)
-        else:
-            events.to_csv(file_name, index=False)
-
-    return events
-
-
-def labels_to_events_v2(predicted_labels,
-    start_time,
-    total_duration,
-    arp=10.0,
-    pos_percent=0.8,
-    min_duration=10.0,
-    sample_duration=2.0,
-    overlap=0.5,
-    to_file=False,
-    file_name=None,
-    to_dataframe=False):
-    """
-    Convert the model output to seizure events with start and end times.
-    Args:
-        predicted_labels:
-        start_time:
-        total_duration:
-        arp:
-        pos_percent:
-        min_duration:
-        sample_duration:
-        overlap:
+        predicted_labels: np.ndarray, predicted labels of the model.
+        start_time: np.ndarray, the start times of the samples
+        total_duration: float, the total duration of the recording in seconds
+        arp: float, the absolute refractory period in seconds
+        pos_percent: float, the percentage of positive samples in a window to trigger an alarm
+        min_duration: float, the minimum duration of a seizure in seconds
+        seglen: float, the length of the segment in seconds
+        overlap: float, the overlap between segments as a fraction of the segment length [0, 1)
 
     Returns:
         (list, list) start and stop times of the seizures
+        or pd.DataFrame with columns ['start_time', 'stop_time', 'annotation']
     """
     # include del
     # create a full time index for all the start times
-    time_index = np.arange(0, total_duration-sample_duration+1*overlap, sample_duration * (1 - overlap))
-    # get indices of the start times
+    step = seglen * (1 - overlap)   # time between two consecutive segments
+    time_index = np.arange(0, total_duration - seglen, step)
+    # get indices of the start times of labelled samples
     start_indices = np.searchsorted(time_index, start_time)
+    # initialize the labels to include the removed segments
     full_labels = np.ones_like(time_index)*(-1)
     full_labels[start_indices] = predicted_labels
-    window = int(min_duration / (sample_duration * (1 - overlap)))
+    window = int(min_duration / step)
     min_pos_samp = int(pos_percent * window)
     seiz_start = []
     seiz_stop = []

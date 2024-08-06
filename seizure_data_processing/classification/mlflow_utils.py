@@ -472,7 +472,7 @@ def log_parent_run(
             #     np.sign(predictions[:, 0]),
             #     predictions[:, 1],
             #     overlap=0.5,
-            #     sample_duration=2,
+            #     seglen=2,
             #     arp=10.0,
             #     min_duration=10.0,
             #     pos_percent=0.8,
