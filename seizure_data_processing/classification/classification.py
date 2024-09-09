@@ -444,7 +444,7 @@ def get_classifier(classifier_name):
     if classifier_name == "SVM":
         from sklearn.svm import SVC
 
-        clf = SVC(class_weight="balanced")
+        clf = SVC()
     elif classifier_name == "CPKRR":
         from tensorlibrary.learning.t_krr import CPKRR
 
