@@ -198,7 +198,8 @@ def labels_to_events(predicted_labels,
         if np.sum(full_labels[k-window:k] == 1) >= min_pos_samp and (start or seiz_stop[-1] < time_index[k-window]):
             start=False
             seiz_start.append(time_index[k-min_pos_samp])
-            while len(full_labels) >= k and np.sum(full_labels[k-window:k] == 1) >= min_pos_samp: #get end time
+            while len(full_labels) - 1 > k and np.sum(full_labels[k-window:k] == 1) >= min_pos_samp:
+                # time
                 k+=1
             seiz_stop.append(time_index[k])
 

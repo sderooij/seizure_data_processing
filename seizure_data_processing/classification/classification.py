@@ -425,6 +425,10 @@ def get_scaler(scaler_name):
     elif scaler_name == 'max-abs':
         from sklearn.preprocessing import MaxAbsScaler
         scaler = MaxAbsScaler()
+    elif scaler_name == "min-max2":
+        from sklearn.preprocessing import MinMaxScaler
+
+        scaler = MinMaxScaler(feature_range=(-0.5, 0.5))
     elif scaler_name == "none":
         return None
     else:
