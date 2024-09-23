@@ -118,9 +118,10 @@ class SeizureClassifier:
             warnings.warn("Classifier does not have a fit method.")
         # check that hyperparameters are valid (correspond to classifier)
         pars = self.classifier.get_params()
-        for key in self.hyperparams.keys():
-            if key not in pars:
-                warnings.warn(f"{key} not in classifier hyperparameters.")
+        if isinstance(self.hyperparams, dict):
+            for key in self.hyperparams.keys():
+                if key not in pars:
+                    warnings.warn(f"{key} not in classifier hyperparameters.")
 
         return
 
