@@ -141,9 +141,19 @@ class SeizureClassifier:
         return self
 
     def _set_grid_search(self):
-        hyperparams = {
-            f"clf__{key}": self.hyperparams[key] for key in self.hyperparams.keys()
-        }
+        if isinstance(self.hyperparams, dict):
+            hyperparams = {
+                f"clf__{key}": self.hyperparams[key] for key in self.hyperparams.keys()
+            }
+        elif isinstance(self.hyperparams, list):    # list of dicts
+            hyperparams = []
+            for param_dict in self.hyperparams:
+                hyperparams.append(
+                    {f"clf__{key}": param_dict[key] for key in param_dict.keys()}
+                )
+        else:
+            raise ValueError("Hyperparameters not recognized.")
+
         if self.grid_search.casefold() == "full".casefold():
             self.pipeline = GridSearchCV(
                 self.pipeline,
