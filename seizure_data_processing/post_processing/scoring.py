@@ -34,11 +34,14 @@ def chunker(seq, size):
 
 def get_scores(output, true_labels, metrics: dict):
     predicted_labels = np.sign(output).astype(int)
-    # check for zeros in predicted labels
+    # check for zeros in predicted train_labels
     scores = {}
     for key, value in metrics.items():
         if value == "roc_auc" or value == "average_precision":
-            scores[key] = get_scorer(value)._score_func(true_labels, output)
+            try:
+                scores[key] = get_scorer(value)._score_func(true_labels, output)
+            except ValueError:
+                scores[key] = np.nan
         else:
             scores[key] = get_scorer(value)._score_func(true_labels, predicted_labels)
 

@@ -259,9 +259,9 @@ def generate_run_name(
     Returns:
         run_name: the name of the run, ends with unix timestamp.
     """
-    if model_type == "PS" or model_type == "PF":
+    if model_type == "PS" or (model_type == "PF" and not cross_val_type == "AL"):
         run_name = f"{classifier_name}_{model_type}_{cross_val_type}_{patient}_{int(time.time())}"
-    elif model_type == "PI":
+    elif model_type == "PI" or (model_type == "PF" and cross_val_type == "AL"):
         run_name = f"{classifier_name}_{model_type}_{cross_val_type}_{int(time.time())}"
     else:
         raise ValueError("Model type not recognized")
@@ -277,19 +277,20 @@ def log_group_run(
     tags,
     scores,
     groups,
+    *,
+    extra_table=None
 ):
     """
     Function to log group runs as child runs.
     Args:
         estimator: The estimator object
+        group_id: The unique group id (e.g. patient id)
         model_type: The type of model, either "PS", "PF" or "PI"
         classifier_name: The name of the classifier
         patient: The patient id, only for model_type="PS"
         tags: The tags used in the model
-        features: The features used in the model
-        labels: The labels used in the model
+        scores: The scores of the model
         groups: The groups used in the model
-        group_id: The unique group id
     Returns:
         None
 
@@ -299,22 +300,17 @@ def log_group_run(
     else:
         run_name = f"{classifier_name}_{model_type}_{group_id}"
 
-    idx = np.where(groups == group_id)[0]
-    # features = features[idx, :]
-    # model_output = estimator.decision_function(features)
-    # bias = optimize_bias(model_output, labels[idx])
-    # model_output = model_output - bias
-    # if any(model_output==0):
-    #     idx0= np.where(model_output == 0)[0]
-    #     model_output[idx0] = model_output[idx0] + 1e-6
+    # idx = np.where(groups == group_id)[0]
 
     # labels = labels[idx]
     with mlflow.start_run(nested=True, run_name=run_name) as child_run:
         # Log the tags
         tags = tags.copy()
         tags["group"] = group_id  # TODO: check that these correspond to the estimator
-        if model_type == "PI":
+        if model_type == "PI" or model_type == "PF":
             tags["patient"] = group_id
+        else:
+            tags["patient"] = patient
         mlflow.set_tags(tags)
 
         # # get signature
@@ -328,6 +324,8 @@ def log_group_run(
                 # get params with "clf__" prefix without the "w_init" parameter
                 params = {key: params[key] for key in params.keys() if "clf__" in key and "w_init" not in key}
             mlflow.log_params(params)
+        if extra_table is not None:
+            mlflow.log_table(extra_table, artifact_file="parameters.json")
         # Log the scores #TODO: write a function to log the scores
         mlflow.log_metrics(scores)
         # Log the model
