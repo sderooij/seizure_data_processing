@@ -190,6 +190,11 @@ class SeizureClassifier:
             cv_type=self.model_type,
             patient_id=self.patient,
         )
+        # sort to be sure indices match
+        feat_df = feat_df.sort_values("index")
+        feat_df.set_index("index", inplace=True)
+        group_df = group_df.sort_values("index")
+        group_df.set_index("index", inplace=True)
 
         if delete_pre_post_ictal:
             feat_df = feat_df.loc[
@@ -198,12 +203,12 @@ class SeizureClassifier:
             group_df = group_df.loc[feat_df.index]
         if mode == "train":
             # only select features that contain the train flag
-            idx_train = feat_df["train"] == True
+            idx_train = group_df["train"] == True
             feat_df = feat_df.loc[idx_train, :]
             group_df = group_df.loc[idx_train, :]
         elif mode == "test":
             # only select features that contain the test flag
-            idx_test = feat_df["test"] == True
+            idx_test = group_df["test"] == True
             feat_df = feat_df.loc[idx_test, :]
             group_df = group_df.loc[idx_test, :]
 
@@ -219,12 +224,12 @@ class SeizureClassifier:
         self.groups = groups
         return self
 
-    def cross_validate(self, *, feature_file=None, group_file=None):
+    def cross_validate(self, *, feature_file=None, group_file=None, annotation_column="annotation"):
         if feature_file is not None:
             self.feature_file = feature_file
         if group_file is not None:
             self.group_file = group_file
-        self._load_data(mode="train", annotation_column="annotation")
+        self._load_data(mode="train", annotation_column=annotation_column)
         all_scores = {
             "AUC": "roc_auc",
             "Accuracy": "accuracy",

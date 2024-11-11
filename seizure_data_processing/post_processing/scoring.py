@@ -218,20 +218,23 @@ def labels_to_events(predicted_labels,
         return events
 
 
-def any_ovlp(hyp, ref):
+def any_ovlp(hyp, ref, *, save_hits=False):
     """
     Any overlap event scoring. For now all seizure types are permissible.
     Args:
         hyp: hypothesis annotations (start, stop, annotation)
         ref: reference annotations (start, stop, annotation)
+        save_hits: bool, whether to save the indices of the hits or not. Defaults to False.
 
     Returns:
-        tuple (hits, misses, false_alarms)
+        tuple (hits, misses, false_alarms) or (hits, misses, false_alarms, ref_hits)
     """
 
     hits = 0
     misses = 0
     false_alarms = 0
+    if save_hits:
+        ref_hits = np.zeros((len(ref), 1))
 
     for i, event in ref.iterrows():
         hyp_events = get_events(hyp, event["start_time"], event["stop_time"])
@@ -239,13 +242,18 @@ def any_ovlp(hyp, ref):
             misses += 1
         else:
             hits += 1
+            if save_hits:
+                ref_hits[i] = 1
 
     for i, event in hyp.iterrows():
         ref_events = get_events(ref, event["start_time"], event["stop_time"])
         if len(ref_events) == 0 or np.all(ref_events["annotation"] == "bckg"):
             false_alarms += 1
 
-    return hits, misses, false_alarms
+    if save_hits:
+        return hits, misses, false_alarms, ref_hits
+    else:
+        return hits, misses, false_alarms
 
 
 def get_events(events, start, stop, *, mode="any-ovlp"):

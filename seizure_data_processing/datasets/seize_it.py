@@ -9,17 +9,23 @@ import pandas as pd
 from seizure_data_processing.datasets.helper_functions import ann_to_dataframe
 
 
-def load_annotations(file: str) -> pd.DataFrame:
+def load_annotations(file: str, *, version='a2') -> pd.DataFrame:
     """load annotations and output as a pandas dataframe.
 
     Args:
         file (str): edf file to annotate
+        version (str, optional): Version of the annotations. Defaults to 'a2'.
 
     Returns:
         pd.DataFrame: with columns [start_time, stop_time, annotation, comments]
     """
     if ".edf" in file:
-        file = file.replace(".edf", "_a2.tsv")
+        if version == 'a2':
+            file = file.replace(".edf", "_a2.tsv")
+        elif version == 'a1':
+            file = file.replace(".edf", "_a1.tsv")
+        else:
+            raise ValueError("Version should be either 'a1' or 'a2'")
     try:
         seizures = pd.read_csv(file, sep="\t", header=None, comment="#")
     except pd.errors.EmptyDataError:

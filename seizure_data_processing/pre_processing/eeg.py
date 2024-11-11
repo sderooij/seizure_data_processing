@@ -208,7 +208,7 @@ class EEG:
         )
         return self
 
-    def annotate(self):
+    def annotate(self, **kwargs):
         """Annotate the EEG data
 
         Raises:
@@ -223,7 +223,7 @@ class EEG:
         elif self._dataset == "tusz":
             self.annotations = tusz.load_annotations(self.filename)
         elif self._dataset == "seize-it":
-            self.annotations = seize_it.load_annotations(self.filename)
+            self.annotations = seize_it.load_annotations(self.filename, **kwargs)
         else:
             raise Exception("Dataset not supported for annotation.")
 
