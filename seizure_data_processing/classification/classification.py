@@ -249,6 +249,7 @@ class SeizureClassifier:
             return_train_score=True,
             return_indices=True,
             verbose=self.verbose,
+            error_score="raise",
         )
 
         val_dict["groups"] = np.unique(self.groups)

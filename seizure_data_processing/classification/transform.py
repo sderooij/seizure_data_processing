@@ -7,23 +7,23 @@ import numpy as np
 from functools import reduce
 
 
-class AddSeizureGroupData(BaseEstimator, TransformerMixin):
+class AddGroupsToData(BaseEstimator, TransformerMixin):
     """
-        For transfer active learning with seizure groups, we need to add the full seizure data to the training
+        For transfer active learning with groups, we need to add all of the (positive) group data to the training
         data.
     """
-    def __init__(self, seizure_groups):
-        self.seizure_groups = seizure_groups
-        self.included_seizure_groups = None
+    def __init__(self, groups):
+        self.groups = groups
+        self.included_groups = None
 
     def fit(self, idx):
-        self.included_seizure_groups = np.unique(self.seizure_groups[idx])
+        self.included_groups = np.unique(self.groups[idx])
         return self
 
     def transform(self, idx):
         added_idx = [idx]
-        for i, group in enumerate(self.included_seizure_groups):
-            added_idx.append(np.where(self.seizure_groups == group)[0])
+        for i, group in enumerate(self.included_groups):
+            added_idx.append(np.where(self.groups == group)[0])
         idx = reduce(np.union1d, added_idx)
 
         return idx
