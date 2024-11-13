@@ -295,11 +295,16 @@ class SeizureClassifier:
             feat_df = feat_df.loc[idx_test, :]
 
         feat_cols = [col for col in feat_df.columns if '|' in col]
+        unique_groups = np.unique(feat_df[group_col[0]])
+        # check with estimator groups
+        est_groups = np.array(list(self.estimator.keys()))
+        unique_groups = np.intersect1d(unique_groups, est_groups)
+        # remove data from feature dataframe that in not in the groups
+        feat_df = feat_df.loc[feat_df[group_col[0]].isin(unique_groups), :]
         inf_cols = ['index', 'start_time', 'stop_time', 'filename', annotation_column, group_col[0]]
         info_df = feat_df.loc[:, inf_cols].copy()
         info_df['predicted_output'] = np.nan
         info_df['predicted_label'] = np.nan
-        unique_groups = np.unique(info_df[group_col[0]])
 
         for i, group in enumerate(unique_groups):
             test_idx = info_df[info_df[group_col[0]] == group].index
