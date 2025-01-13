@@ -109,7 +109,7 @@ def optimize_bias(predictions, labels, metric="roc", *, N=500):
         bias = thresholds[np.argmax(tpr - fpr)]  # using Youden's J statistic
         bias = -bias
 
-    elif metric == "pr":
+    elif metric == "f1" or metric == "f2" or metric == "pr" or metric == "f3":
         precision, recall, thresholds = precision_recall_curve(
             labels, predictions, drop_intermediate=True
         )
@@ -120,14 +120,18 @@ def optimize_bias(predictions, labels, metric="roc", *, N=500):
         precision = np.delete(precision, np.concatenate((zero_idx, nan_idx)))
         recall = np.delete(recall, np.concatenate((zero_idx, nan_idx)))
         thresholds = np.delete(thresholds, np.concatenate((zero_idx, nan_idx)))
-
-        fscore = (2 * precision * recall) / (precision + recall)
+        if metric == "f1" or metric == "pr":
+            fscore = 2 * precision * recall / (precision + recall)
+        elif metric == "f2":
+            fscore = 5 * precision * recall / (4 * precision + recall)
+        elif metric == "f3":
+            fscore = 10 * precision * recall / (9 * precision + recall)
         bias = thresholds[np.argmax(fscore)]
 
-        assert np.isclose(
-            f1_score(labels, np.sign(predictions - bias) + (predictions - bias == 0)),
-            np.max(fscore),
-        )
+        # assert np.isclose(
+        #     f1_score(labels, np.sign(predictions - bias) + (predictions - bias == 0)),
+        #     np.max(fscore),
+        # )
         bias = -bias
     return bias
 

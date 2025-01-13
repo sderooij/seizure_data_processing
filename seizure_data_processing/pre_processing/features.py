@@ -13,7 +13,7 @@ from functools import partial
 from scipy.signal import welch
 from scipy.stats import skew, kurtosis, entropy
 import antropy as ant
-from scipy.integrate import trapezoid, simps
+from scipy.integrate import trapezoid, simpson
 
 
 def chunker(arr, size, overlap):

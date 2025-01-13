@@ -89,7 +89,10 @@ class SeizureClassifier:
 
         self._check_attributes()
 
-        self._create_pipeline()
+        if self.model_type == 'PF':
+            self._create_pipeline(k_folds=3)
+        else:
+            self._create_pipeline()
         # self._load_data(mode="train")
 
     def _check_attributes(self):
@@ -125,7 +128,7 @@ class SeizureClassifier:
 
         return
 
-    def _create_pipeline(self):
+    def _create_pipeline(self,* , k_folds=5):
         # if "sampler" in self.preprocess_steps.keys():
         #     from imblearn.pipeline import Pipeline
         # else:
@@ -137,10 +140,10 @@ class SeizureClassifier:
         steps.append(("clf", self.classifier))
         pipe = Pipeline(steps=steps)
         self.pipeline = pipe
-        self._set_grid_search()
+        self._set_grid_search(k_folds=k_folds)
         return self
 
-    def _set_grid_search(self):
+    def _set_grid_search(self, *, k_folds=5):
         if isinstance(self.hyperparams, dict):
             hyperparams = {
                 f"clf__{key}": self.hyperparams[key] for key in self.hyperparams.keys()
@@ -158,7 +161,7 @@ class SeizureClassifier:
             self.pipeline = GridSearchCV(
                 self.pipeline,
                 hyperparams,
-                cv=5,
+                cv=k_folds,
                 scoring=self.grid_search_scoring,
                 n_jobs=self.n_jobs,
                 verbose=self.verbose,
@@ -168,7 +171,7 @@ class SeizureClassifier:
             self.pipeline = RandomizedSearchCV(
                 self.pipeline,
                 hyperparams,
-                cv=5,
+                cv=k_folds,
                 scoring=self.grid_search_scoring,
                 n_jobs=self.n_jobs,
                 verbose=self.verbose,
@@ -183,7 +186,8 @@ class SeizureClassifier:
         delete_pre_post_ictal=False,
         mode="train",
         annotation_column="annotation",
-    ):  # TODO: patient-independent (list of feature files)
+    ):
+        #TODO: add option to select specifc features by name
         feat_df, group_df = get_features(
             self.feature_file,
             self.group_file,
@@ -206,6 +210,11 @@ class SeizureClassifier:
             idx_train = group_df["train"] == True
             feat_df = feat_df.loc[idx_train, :]
             group_df = group_df.loc[idx_train, :]
+
+            if self.crossval_type == "LOSI":        # patient finetuned cross validation Leave-one-seizure-in
+                n_groups = len(np.unique(feat_df["group"]))
+                self.cv_obj = LeavePGroupsOut(n_groups=n_groups-1)
+
         elif mode == "test":
             # only select features that contain the test flag
             idx_test = group_df["test"] == True
@@ -238,6 +247,11 @@ class SeizureClassifier:
             "Recall": "recall",
             "average_precision": "average_precision",
         }
+        if isinstance(self.pipeline, GridSearchCV) or isinstance(self.pipeline, RandomizedSearchCV):
+            n_jobs = 1  # parallelization in grid search not cross_validate
+        else:
+            n_jobs = self.n_jobs
+
         val_dict = cross_validate(
             estimator=self.pipeline,
             X=self.features,
@@ -250,43 +264,53 @@ class SeizureClassifier:
             return_indices=True,
             verbose=self.verbose,
             error_score="raise",
+            n_jobs=n_jobs,
         )
 
         val_dict["groups"] = np.unique(self.groups)
         self.crossval_output = val_dict
         self.estimator = {}
-        for i, group in enumerate(val_dict["groups"]):
-            group_idx = np.where(self.groups == group)[0]
-            assert np.array_equal(group_idx, val_dict['indices']['test'][i]), ("Mismatch in group indices, "
-                                                                               "something went wrong.")
-            self.estimator[str(group)] = val_dict["estimator"][i]
+        if self.model_type == "PI":
+            for i, group in enumerate(val_dict["groups"]):
+                group_idx = np.where(self.groups == group)[0]
+                if self.crossval_type =="LOPO":
+                    assert np.array_equal(group_idx, val_dict['indices']['test'][i]), ("Mismatch in group indices, "
+                                                                                    "something went wrong.")
+                self.estimator[str(group)] = val_dict["estimator"][i]
+        elif self.model_type == "PF" and self.crossval_type == "LOSI":
+            self.estimator = val_dict["estimator"].copy()
+            # save the crossvalidation groups for later use
+            self.crossval_output["groups"] = []
+            for i, (train_idx, test_idx) in enumerate(
+                self.cv_obj.split(X=self.features, y=self.labels, groups=self.groups)
+            ):
+                temp_dict = {'train': list(np.unique(self.groups[train_idx])),
+                             'test': list(np.unique(self.groups[test_idx]))}
+                self.crossval_output["groups"].append(temp_dict)
 
         return self
 
-    def predict(self, feature_file, group_file, *, mode='test', annotation_column='annotation'):
+    def predict(self, feature_file, group_file, *, mode='test', annotation_column='annotation', batch_size=1024):
 
         feat_df, group_df = get_features(feature_file, group_file, cv_type=self.model_type, patient_id=self.patient)
+        # TODO: fix/test this for the patient-finetuned case and make it more legible
+        if self.model_type == 'PI':
+            group_col = [col for col in feat_df.columns if 'patient' in col.lower()][0]
+        elif self.model_type == 'PS' or self.model_type == 'PF':
+            group_col = [col for col in feat_df.columns if 'group' in col.lower()][0]
+        else:
+            raise ValueError('Model type not recognized')
 
         if feature_file == group_file:
-            if self.model_type == 'PI':
-                group_col = [col for col in feat_df.columns if 'patient' in col.lower()]
-            elif self.model_type == 'PS':
-                group_col = [col for col in feat_df.columns if 'group' in col.lower()]
-            else:
-                raise ValueError('Model type not recognized')
             del group_df
         else:
-            feat_df = pd.read_parquet(feature_file).sort_values('index')
-            group_df = pd.read_parquet(group_file).sort_values('index')
-            if self.model_type == 'PI':
-                group_col = [col for col in group_df.columns if 'patient' in col.lower()]
-            elif self.model_type == 'PS':
-                group_col = [col for col in group_df.columns if 'group' in col.lower()]
-            else:
-                raise ValueError('Model type not recognized')
-            feat_df[group_col[0]] = group_df.loc[:, group_col[0]].copy()
+            group_idx = group_df['index'].to_numpy()
+            feat_df.loc[feat_df['index'].isin(group_idx), group_col] = group_df.loc[group_df['index'].isin(
+                group_idx), group_col].to_numpy()
+            # feat_df[group_col[0]] = group_df.loc[:, group_col[0]].copy()
             del group_df
 
+        # predict on test or train data (dataframe should contain 'test' and 'train' columns)
         if mode == 'train':
             idx_train = feat_df['train'] == True
             feat_df = feat_df.loc[idx_train, :]
@@ -294,28 +318,64 @@ class SeizureClassifier:
             idx_test = feat_df['test'] == True
             feat_df = feat_df.loc[idx_test, :]
 
-        feat_cols = [col for col in feat_df.columns if '|' in col]
-        unique_groups = np.unique(feat_df[group_col[0]])
-        # check with estimator groups
-        est_groups = np.array(list(self.estimator.keys()))
-        unique_groups = np.intersect1d(unique_groups, est_groups)
-        # remove data from feature dataframe that in not in the groups
-        feat_df = feat_df.loc[feat_df[group_col[0]].isin(unique_groups), :]
-        inf_cols = ['index', 'start_time', 'stop_time', 'filename', annotation_column, group_col[0]]
-        info_df = feat_df.loc[:, inf_cols].copy()
-        info_df['predicted_output'] = np.nan
-        info_df['predicted_label'] = np.nan
+        feat_cols = [col for col in feat_df.columns if '|' in col]  # TODO: change to DELIM_FEAT_CHAN
+        unique_groups = np.unique(feat_df[group_col])
+        if self.model_type == 'PS' or self.model_type == 'PI':
+            # check with estimator groups
+            est_groups = np.array(list(self.estimator.keys()))
+            unique_groups = np.intersect1d(unique_groups, est_groups)
+            # remove data from feature dataframe that in not in the groups
+            feat_df = feat_df.loc[feat_df[group_col].isin(unique_groups), :]
+            output_cols = ['index', 'start_time', 'stop_time', 'filename', annotation_column, group_col]
+            output_df = feat_df.loc[:, output_cols].copy()
+            output_df['predicted_output'] = np.nan
+            output_df['predicted_label'] = np.nan
 
-        for i, group in enumerate(unique_groups):
-            test_idx = info_df[info_df[group_col[0]] == group].index
-            features = feat_df.loc[test_idx, feat_cols].to_numpy()
-            predictions = self.estimator[str(group)].decision_function(features)
-            info_df.loc[test_idx, 'predicted_output'] = predictions
-            info_df.loc[test_idx, 'predicted_label'] = np.sign(predictions)
+            for i, group in enumerate(unique_groups):
+                test_idx = output_df[output_df[group_col] == group].index
+                features = feat_df.loc[test_idx, feat_cols].to_numpy()
+                predictions = self.estimator[str(group)].decision_function(features)
+                output_df.loc[test_idx, 'predicted_output'] = predictions
+                output_df.loc[test_idx, 'predicted_label'] = np.sign(predictions)
 
-        self.predictions = info_df
+        elif self.model_type == 'PF':
+
+            output_cols = ['index', 'start_time', 'stop_time', 'filename', annotation_column, group_col]
+            extra_cols = ['estimator','predicted_output', 'predicted_label']
+            # columns to keep in the output dataframe
+
+            #TODO: make use of predict_groups function and use output to create new output_df with overlapping
+            # indices due to the LOSI cross validation.
+            if self.crossval_type == 'LOSI':
+                cv_obj = LeavePGroupsOut(n_groups=len(unique_groups)-1)
+            else:
+                raise NotImplementedError("Only LOSI cross validation is implemented for PF model type.")
+
+            features = feat_df.loc[:, feat_cols].to_numpy()
+            index_group = feat_df.loc[:, 'index'].to_numpy()        # "absolute" indices
+            groups = feat_df.loc[:, group_col].to_numpy()
+            labels = feat_df.loc[:, annotation_column].to_numpy()
+            output = []
+            feat_df.set_index('index', inplace=True, drop=False)
+            for i, (train_idx, test_idx) in enumerate(
+                    cv_obj.split(X=features, y=labels, groups=groups)
+            ):
+                # group_outputs = pd.DataFrame(columns=output_cols)
+                feats = features[test_idx, :]
+                predictions = self.estimator[i].decision_function(feats)
+                indices = index_group[test_idx]     # get the "absolute" indices, not the "relative" indices
+                group_outputs = feat_df.loc[indices, output_cols].copy()
+                group_outputs['predicted_output'] = predictions
+                group_outputs['predicted_label'] = np.sign(predictions)
+                group_outputs['estimator'] = i
+                group_outputs[group_col] = groups[test_idx]
+                output.append(group_outputs)
+
+            output_df = pd.concat(output, axis=0)
+
+        self.predictions = output_df
         # rename annotation column to true_label and group_col to group
-        self.predictions.rename(columns={annotation_column: 'true_label', group_col[0]: 'group'}, inplace=True)
+        self.predictions.rename(columns={annotation_column: 'true_label', group_col: 'group'}, inplace=True)
         return self.predictions
 
     def score(
@@ -347,7 +407,13 @@ class SeizureClassifier:
                 )
 
         else:
-            raise NotImplementedError
+            for i in range(len(self.estimator)):
+                group_idx = predictions['estimator'] == i
+                scores[i] = get_scores(
+                    predictions.loc[group_idx, "predicted_output"].to_numpy(),
+                    predictions.loc[group_idx, "true_label"].to_numpy(),
+                    all_scores,
+                )
 
         predictions.loc[:, "predicted_label"] = np.sign(predictions["predicted_output"])
 
@@ -597,7 +663,7 @@ def predict_groups(
     for i, (train_idx, test_idx) in enumerate(
         cv_obj.split(X=features, y=labels, groups=groups)
     ):
-        predictions["group_id"].append(groups[test_idx])
+        predictions["group_id"].append(groups[test_idx].unique())
         predictions["prediction"].append(
             estimators[i].decision_function(features[test_idx, :])
         )
@@ -762,6 +828,8 @@ def extract_feature_group_labels(
 
     if cv_type == "PS" or cv_type == "PF":
         group_col = [col for col in group_df.columns if "group" in col.lower()]
+        if len(group_col) == 0:
+            group_col = [col for col in group_df.columns if "patient" in col.lower()]
     elif cv_type == "PI":
         group_col = [col for col in group_df.columns if "patient" in col.lower()]
 

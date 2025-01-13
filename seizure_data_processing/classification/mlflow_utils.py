@@ -18,6 +18,7 @@ from imblearn.under_sampling import RandomUnderSampler
 from imblearn.pipeline import Pipeline as ImbPipeline
 from seizure_data_processing.post_processing.post_process import optimize_bias
 from seizure_data_processing.post_processing.scoring import event_scoring
+from tensorlibrary.learning.active import BaseActiveLearnClassifier
 
 
 def set_global_variables(
@@ -259,9 +260,9 @@ def generate_run_name(
     Returns:
         run_name: the name of the run, ends with unix timestamp.
     """
-    if model_type == "PS" or (model_type == "PF" and not cross_val_type == "AL"):
+    if model_type == "PS":
         run_name = f"{classifier_name}_{model_type}_{cross_val_type}_{patient}_{int(time.time())}"
-    elif model_type == "PI" or (model_type == "PF" and cross_val_type == "AL"):
+    elif model_type == "PI" or (model_type == "PF"):
         run_name = f"{classifier_name}_{model_type}_{cross_val_type}_{int(time.time())}"
     else:
         raise ValueError("Model type not recognized")
@@ -323,6 +324,15 @@ def log_group_run(
             if "clf" in params.keys():
                 # get params with "clf__" prefix without the "w_init" parameter
                 params = {key: params[key] for key in params.keys() if "clf__" in key and "w_init" not in key}
+            else:
+                params = {key: params[key] for key in params.keys() if "w_init" not in key}
+            if isinstance(estimator, BaseActiveLearnClassifier):
+                # remove params with init in key
+                params = {key: params[key] for key in params.keys() if "init" not in key}
+                # include "included groups"
+                params["included_groups"] = estimator.included_groups
+                params["model_params"] = {key: estimator.model_params[key] for key in estimator.model_params.keys() if "w_init" not in key}
+
             mlflow.log_params(params)
         if extra_table is not None:
             mlflow.log_table(extra_table, artifact_file="parameters.json")
