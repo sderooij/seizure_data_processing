@@ -519,7 +519,7 @@ def extract_features(
             filtered_epoch, axis=0, nan_policy="raise"
         )
         features["RMS_amplitude"].loc[i_feat] = rms(filtered_epoch, axis=0)
-        # features["line_length"].loc[i_feat] = line_length(filtered_epoch, axis=0)
+        # features["line_length"].hemisphere[i_feat] = line_length(filtered_epoch, axis=0)
 
         # Frequency domain features
         # power spectral density
@@ -531,7 +531,7 @@ def extract_features(
             scaling="density",
         )
         # total power
-        # features["total_power"].loc[i_feat] = simps(psd, dx=freq[1] - freq[0], axis=0)
+        # features["total_power"].hemisphere[i_feat] = simps(psd, dx=freq[1] - freq[0], axis=0)
         # peak frequency
         features["peak_freq"].loc[i_feat] = freq[np.argmax(psd, axis=0)]
         # mean power in high frequency band

@@ -4,6 +4,7 @@
 
 import numpy as np
 from sklearn.metrics import roc_curve, precision_recall_curve, f1_score
+from scipy.ndimage import uniform_filter1d
 
 
 def moving_average_filter(data, window_size):
@@ -22,11 +23,14 @@ def moving_average_filter(data, window_size):
     np.ndarray
         The filtered data.
     """
-    # pad data to reduce boundary effects and keep the same length
-    data_padded = np.pad(
-        data, (window_size // 2, window_size - 1 - window_size // 2), mode="edge"
-    )
-    return np.convolve(data_padded, np.ones(window_size) / window_size, mode="valid")
+    # # pad data to reduce boundary effects and keep the same length
+    # data_padded = np.pad(
+    #     data, (window_size // 2, window_size - 1 - window_size // 2), mode="edge"
+    # )
+    # return np.convolve(data_padded, np.ones(window_size) / window_size, mode="valid")
+    # cumsum = np.cumsum(np.insert(data_padded, 0, 0))
+    # return (cumsum[window_size:] - cumsum[:-window_size]) / float(window_size)
+    return uniform_filter1d(data, window_size, mode="nearest", origin=0)
 
 
 def remove_overlap(labels, pos_overlap=0.9, neg_overlap=0.0, desired_overlap=0.0):

@@ -262,8 +262,14 @@ def generate_run_name(
     """
     if model_type == "PS":
         run_name = f"{classifier_name}_{model_type}_{cross_val_type}_{patient}_{int(time.time())}"
-    elif model_type == "PI" or (model_type == "PF"):
+    elif model_type == "PI" or (model_type == "PF" and cross_val_type=='AL'):
         run_name = f"{classifier_name}_{model_type}_{cross_val_type}_{int(time.time())}"
+    elif model_type == "PF" and cross_val_type=='LOSI':
+        t = int(time.time())
+        # round to the nearest hour
+        t = t - (t %  3600)
+        t = t+3600
+        run_name = f"{classifier_name}_{model_type}_{cross_val_type}_{patient}_{t}"
     else:
         raise ValueError("Model type not recognized")
     return run_name
@@ -278,6 +284,7 @@ def log_group_run(
     tags,
     scores,
     groups,
+    signature,
     *,
     extra_table=None
 ):
@@ -313,12 +320,16 @@ def log_group_run(
         else:
             tags["patient"] = patient
         mlflow.set_tags(tags)
+        if isinstance(groups, dict):
+            mlflow.log_params(groups)
 
         # # get signature
         # signature = infer_signature(features, output_labels)
         # Log the parameters
         if hasattr(estimator, "best_params_"):
-            mlflow.log_params(estimator.best_params_)
+            params = estimator.best_params_
+            params = {key: params[key] for key in params.keys() if "w_init" not in key}
+            mlflow.log_params(params)
         else:
             params = estimator.get_params()
             if "clf" in params.keys():
@@ -343,13 +354,13 @@ def log_group_run(
             model_info = mlflow.sklearn.log_model(
                 sk_model=estimator.best_estimator_,
                 artifact_path="sk_model",
-                # signature=signature,
+                signature=signature,
             )
         else:
             model_info = mlflow.sklearn.log_model(
                 sk_model=estimator,
                 artifact_path="sk_model",
-                # signature=signature
+                signature=signature
             )
 
     return None
@@ -363,6 +374,7 @@ def log_group_runs(
     tags,
     scores,
     groups,
+    signature,
 ):
     """
     Function to log group runs as child runs.
@@ -393,6 +405,7 @@ def log_group_runs(
                 tags,
                 scores[group_id],
                 groups,
+                signature,
             )
         )
 
@@ -412,23 +425,31 @@ def log_parent_run(
     classifier_name,
     predictions,
     scores,
+    signature,
     child_runs=True,
     patient=None,
     temp_dir="temp/",
+    crossval_type="LOPO",
+    hyperparams=None,
 ):
 
     with mlflow.start_run(experiment_id=experiment_id, run_name=run_name) as run:
         # Log the tags
         mlflow.set_tags(tags)
         # Log the parameters
-        mlflow.log_params(grid_search.get_params())
+        grid_params = grid_search.get_params()
+        grid_params = {key: grid_params[key] for key in grid_params.keys() if "estimator" not in key}
+        grid_params = {key: grid_params[key] for key in grid_params.keys() if "w_init" not in key}# to prevent
+        if hyperparams is not None:
+            grid_params.update(hyperparams)
+        # too much data in the parameters
+        mlflow.log_params(grid_params)
         mlflow.log_param("feature_file", feature_file)
         mlflow.log_param("group_file", group_file)
 
         # log the predictions to a parquet file
         predictions.to_parquet(f"{temp_dir}/output.parquet")
         mlflow.log_artifact(f"{temp_dir}/output.parquet")
-
         # Log the scores
         # log mean and std of scores over the groups
         for key, value in val_dict.items():
@@ -465,16 +486,33 @@ def log_parent_run(
             # )
             # with Pool() as pool:
             #     predictions = pool.starmap(log_child_run, zip(val_dict["estimator"], unique_groups))
-
-            log_group_runs(
-                val_dict,
-                model_type,
-                classifier_name,
-                patient,
-                tags,
-                scores,
-                groups,
-            )
+            if crossval_type == "LOPO" or crossval_type == "LOSO":
+                log_group_runs(
+                    val_dict,
+                    model_type,
+                    classifier_name,
+                    patient,
+                    tags,
+                    scores,
+                    groups,
+                    signature,
+                )
+            elif crossval_type == "LOSI":
+                for i, estimator in enumerate(val_dict["estimator"]):
+                    group_id = i
+                    # mlflow.log_param('train_group', val_dict["groups"][i]['train'])
+                    # mlflow.log_param('test_group', val_dict["groups"][i]['test'])
+                    log_group_run(
+                        estimator,
+                        group_id,
+                        model_type,
+                        classifier_name,
+                        patient,
+                        tags,
+                        scores[group_id],
+                        val_dict["groups"][i],
+                        signature,
+                    )
             # predictions = np.concatenate(predictions)
             # scores = event_scoring(
             #     np.sign(predictions[:, 0]),

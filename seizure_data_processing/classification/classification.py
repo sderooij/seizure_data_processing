@@ -29,6 +29,8 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from tensorlibrary.learning.t_krr import CPKRR
+from copy import deepcopy
+from sklearn.base import clone
 
 # internal imports
 # import seizure_data_processing.classification.mlflow_utils as mutils
@@ -177,6 +179,8 @@ class SeizureClassifier:
                 verbose=self.verbose,
                 refit=True,
             )
+        elif self.grid_search.casefold() == "on-test".casefold():
+            self.hyperparams = hyperparams
 
         return self
 
@@ -252,20 +256,49 @@ class SeizureClassifier:
         else:
             n_jobs = self.n_jobs
 
-        val_dict = cross_validate(
-            estimator=self.pipeline,
-            X=self.features,
-            y=self.labels,
-            groups=self.groups,
-            scoring=all_scores,
-            cv=self.cv_obj,
-            return_estimator=True,
-            return_train_score=True,
-            return_indices=True,
-            verbose=self.verbose,
-            error_score="raise",
-            n_jobs=n_jobs,
-        )
+
+        if self.grid_search.casefold() == "on-test".casefold():
+
+            gridsearch = GridSearchCV(
+                self.pipeline,
+                self.hyperparams,
+                scoring=self.grid_search_scoring,
+                n_jobs=self.n_jobs,
+                refit=False,
+                cv = self.cv_obj.split(X=self.features, y=self.labels, groups=self.groups),
+                verbose=self.verbose,
+                return_train_score=True,
+            )
+            gridsearch.fit(self.features, self.labels)
+            cv_results = gridsearch.cv_results_
+            val_dict = {"estimator":[], "test_score":[], "train_score":[], "indices":{'train':[], 'test':[]}}
+            for i, (train_idx, test_idx) in enumerate(self.cv_obj.split(X=self.features, y=self.labels, groups=self.groups)):
+                model = clone(self.pipeline)
+                best_idx = np.argmax(cv_results[f"split{i}_test_score"])
+                best_params = cv_results[f"params"][best_idx]
+                model.set_params(**best_params)
+                model.fit(self.features[train_idx], self.labels[train_idx])
+                val_dict["estimator"].append(deepcopy(model))
+                val_dict["test_score"].append(cv_results[f"split{i}_test_score"][best_idx])
+                val_dict["train_score"].append(cv_results[f"split{i}_train_score"][best_idx])
+                val_dict["indices"]['train'].append(train_idx.copy())
+                val_dict["indices"]['test'].append(test_idx.copy())
+
+        else:
+            val_dict = cross_validate(
+                estimator=self.pipeline,
+                X=self.features,
+                y=self.labels,
+                groups=self.groups,
+                scoring=all_scores,
+                cv=self.cv_obj,
+                return_estimator=True,
+                return_train_score=True,
+                return_indices=True,
+                verbose=self.verbose,
+                error_score="raise",
+                n_jobs=n_jobs,
+            )
 
         val_dict["groups"] = np.unique(self.groups)
         self.crossval_output = val_dict
@@ -307,7 +340,7 @@ class SeizureClassifier:
             group_idx = group_df['index'].to_numpy()
             feat_df.loc[feat_df['index'].isin(group_idx), group_col] = group_df.loc[group_df['index'].isin(
                 group_idx), group_col].to_numpy()
-            # feat_df[group_col[0]] = group_df.loc[:, group_col[0]].copy()
+            # feat_df[group_col[0]] = group_df.hemisphere[:, group_col[0]].copy()
             del group_df
 
         # predict on test or train data (dataframe should contain 'test' and 'train' columns)
@@ -456,6 +489,7 @@ class SeizureClassifier:
         temp_dir="temp/",
     ):
         import seizure_data_processing.classification.mlflow_utils as mutils
+        from mlflow_utils import infer_signature
 
         if self.scores is None:
             self.score(
@@ -471,6 +505,7 @@ class SeizureClassifier:
             patient=self.patient,
         )
         experiment_id = mutils.set_up_experiment(tracking_url, experiment_name)
+        signature = infer_signature(self.features, self.labels)
 
         # try:  # log with mlflow
         mutils.log_parent_run(
@@ -486,9 +521,12 @@ class SeizureClassifier:
             classifier_name=self.classifier.__class__.__name__,
             predictions=self.predictions,
             scores=self.scores,
+            signature=signature,
             child_runs=True,
             patient=self.patient,
             temp_dir=temp_dir,
+            crossval_type=self.crossval_type,
+            hyperparams=self.hyperparams,
         )
         return
 
@@ -848,7 +886,7 @@ def save_predictions(
         inplace=True,
     )
     if cv_type == "PI" or cv_type == "PS":
-        # feature_df = feature_df.loc[:, ["index", "start_time", "stop_time", "annotation", "Patient"]]
+        # feature_df = feature_df.hemisphere[:, ["index", "start_time", "stop_time", "annotation", "Patient"]]
 
         for i in range(len(predictions["group_id"])):
             feature_df.loc[
