@@ -335,7 +335,7 @@ def asymmetry_psd(psd1, psd2, f, min_freq=0, max_freq=50):
 
 
 def normalize_feature(feature, method="standard", epoch_time=2, buffer=120, labda=0.92):
-    # input: np array (cols: features, rows:epochs), epoch length (s), buffer (s)
+    # input: np array (cols: ann_df, rows:epochs), epoch length (s), buffer (s)
     # median decaying memory method or standard scaler
 
     if method == "median-decay":
@@ -367,7 +367,7 @@ def normalize_feature(feature, method="standard", epoch_time=2, buffer=120, labd
 
 def initialize_features(cols):
     """initialize_feature(cols): initializes a dictionary with (empty) dataframes
-            for all the features. Names of the channels are given by cols.
+            for all the ann_df. Names of the channels are given by cols.
 
     Args:
         cols (list): list of strings containing the names of the channels (columns of the dataframe)
@@ -418,7 +418,7 @@ def extract_features(
     filter_order=4
 ):
     """
-    Extract features from the EEG data.
+    Extract ann_df from the EEG data.
     Args:
         eeg: EEG object
         filter_param: filter parameters, dictionary with keys: min_freq, max_freq, notch_freq
@@ -430,7 +430,7 @@ def extract_features(
         max_amplitude: if epoch_remove, maximum amplitude to keep
 
     Returns:
-        dataframe: dataframe with the features, annotations, start/stop time and filename
+        dataframe: dataframe with the ann_df, annotations, start/stop time and filename
     """
 
     window_length = int(window_time * eeg.Fs)
@@ -510,7 +510,7 @@ def extract_features(
                 continue
 
         # ------------------ Feature calculation ----------------------------
-        # Time domain features
+        # Time domain ann_df
         features["min"].loc[i_feat] = number_min(filtered_epoch)
         features["max"].loc[i_feat] = number_max(filtered_epoch)
         features["nzc"].loc[i_feat] = number_zero_crossings(filtered_epoch)
@@ -519,9 +519,9 @@ def extract_features(
             filtered_epoch, axis=0, nan_policy="raise"
         )
         features["RMS_amplitude"].loc[i_feat] = rms(filtered_epoch, axis=0)
-        # features["line_length"].hemisphere[i_feat] = line_length(filtered_epoch, axis=0)
+        # ann_df["line_length"].hemisphere[i_feat] = line_length(filtered_epoch, axis=0)
 
-        # Frequency domain features
+        # Frequency domain ann_df
         # power spectral density
         freq, psd = welch(
             orig_epoch,
@@ -531,7 +531,7 @@ def extract_features(
             scaling="density",
         )
         # total power
-        # features["total_power"].hemisphere[i_feat] = simps(psd, dx=freq[1] - freq[0], axis=0)
+        # ann_df["total_power"].hemisphere[i_feat] = simps(psd, dx=freq[1] - freq[0], axis=0)
         # peak frequency
         features["peak_freq"].loc[i_feat] = freq[np.argmax(psd, axis=0)]
         # mean power in high frequency band
@@ -616,7 +616,7 @@ def extract_features(
     feat_stop_time = np.array(feat_stop_time)
     assert len(annotations) == len(
         features["min"]
-    ), "Length of annotations should be equal to number of features."
+    ), "Length of annotations should be equal to number of ann_df."
 
     # Combine everything into 1 dataframe
     df = pd.concat(features.values(), axis=1, keys=features.keys())

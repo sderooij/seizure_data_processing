@@ -19,6 +19,7 @@ from imblearn.pipeline import Pipeline as ImbPipeline
 from seizure_data_processing.post_processing.post_process import optimize_bias
 from seizure_data_processing.post_processing.scoring import event_scoring
 from tensorlibrary.learning.active import BaseActiveLearnClassifier
+import cloudpickle
 
 
 def set_global_variables(
@@ -47,7 +48,7 @@ def set_global_variables(
     elif dataset == "seize_it":
         from config import SEIZE_IT_DIR, SFTP_DATA_DIR
 
-        if model_type == "PS" or model_type == "PF":
+        if model_type == "PS" or model_type == "LOSI":
             FEATURES_DIR = SEIZE_IT_DIR + patient + "/"
         else:
             FEATURES_DIR = SEIZE_IT_DIR
@@ -254,7 +255,7 @@ def generate_run_name(
 
     Args:
         classifier_name: the name of the classifier
-        model_type: the type of model, either "PS", "PF" or "PI"
+        model_type: the type of model, either "PS", "LOSI" or "PI"
         cross_val_type: the type of cross validation, either "LOO" or "KFold"
         patient: the patient id, only for model_type="PS"
     Returns:
@@ -262,7 +263,7 @@ def generate_run_name(
     """
     if model_type == "PS":
         run_name = f"{classifier_name}_{model_type}_{cross_val_type}_{patient}_{int(time.time())}"
-    elif model_type == "PI" or (model_type == "PF" and cross_val_type=='AL'):
+    elif model_type == "PI" or (model_type == "LOSI" and cross_val_type=='AL'):
         run_name = f"{classifier_name}_{model_type}_{cross_val_type}_{int(time.time())}"
     elif model_type == "PF" and cross_val_type=='LOSI':
         t = int(time.time())
@@ -293,7 +294,7 @@ def log_group_run(
     Args:
         estimator: The estimator object
         group_id: The unique group id (e.g. patient id)
-        model_type: The type of model, either "PS", "PF" or "PI"
+        model_type: The type of model, either "PS", "LOSI" or "PI"
         classifier_name: The name of the classifier
         patient: The patient id, only for model_type="PS"
         tags: The tags used in the model
@@ -303,7 +304,7 @@ def log_group_run(
         None
 
     """
-    if model_type == "PS":
+    if model_type == "PS" or model_type == "PF":
         run_name = f"{classifier_name}_{model_type}_{patient}_{group_id}"
     else:
         run_name = f"{classifier_name}_{model_type}_{group_id}"
@@ -315,7 +316,7 @@ def log_group_run(
         # Log the tags
         tags = tags.copy()
         tags["group"] = group_id  # TODO: check that these correspond to the estimator
-        if model_type == "PI" or model_type == "PF":
+        if model_type == "PI":
             tags["patient"] = group_id
         else:
             tags["patient"] = patient
@@ -324,7 +325,7 @@ def log_group_run(
             mlflow.log_params(groups)
 
         # # get signature
-        # signature = infer_signature(features, output_labels)
+        # signature = infer_signature(ann_df, output_labels)
         # Log the parameters
         if hasattr(estimator, "best_params_"):
             params = estimator.best_params_
@@ -380,11 +381,11 @@ def log_group_runs(
     Function to log group runs as child runs.
     Args:
         val_dict: A dictionary containing the validation results
-        model_type: The type of model, either "PS", "PF" or "PI"
+        model_type: The type of model, either "PS", "LOSI" or "PI"
         classifier_name: The name of the classifier
         patient: The patient id, only for model_type="PS"
         tags: The tags used in the model
-        features: The features used in the model
+        ann_df: The ann_df used in the model
         labels: The labels used in the model
         unique_groups: The unique groups used in the model
     Returns:
@@ -431,6 +432,7 @@ def log_parent_run(
     temp_dir="temp/",
     crossval_type="LOPO",
     hyperparams=None,
+    save_cv_obj=False,
 ):
 
     with mlflow.start_run(experiment_id=experiment_id, run_name=run_name) as run:
@@ -441,11 +443,16 @@ def log_parent_run(
         grid_params = {key: grid_params[key] for key in grid_params.keys() if "estimator" not in key}
         grid_params = {key: grid_params[key] for key in grid_params.keys() if "w_init" not in key}# to prevent
         if hyperparams is not None:
-            grid_params.update(hyperparams)
+            if crossval_type == "LOSI":
+                grid_params.update(hyperparams)
         # too much data in the parameters
         mlflow.log_params(grid_params)
         mlflow.log_param("feature_file", feature_file)
         mlflow.log_param("group_file", group_file)
+        if save_cv_obj:
+            with open(f"{temp_dir}/cv_obj.pkl", "wb") as f:
+                cloudpickle.dump(val_dict, f)
+            mlflow.log_artifact(f"{temp_dir}/cv_obj.pkl")
 
         # log the predictions to a parquet file
         predictions.to_parquet(f"{temp_dir}/output.parquet")
@@ -479,7 +486,7 @@ def log_parent_run(
             #     classifier_name=classifier_name,
             #     patient=patient,
             #     tags=tags,
-            #     features=features,
+            #     ann_df=ann_df,
             #     labels=labels,
             #     metrics=metrics,
             #     groups=groups,

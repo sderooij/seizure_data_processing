@@ -107,11 +107,28 @@ def stitch_seizures(predicted_labels, arp, sample_duration, overlap):
     return stitched_labels
 
 
-def optimize_bias(predictions, labels, metric="roc", *, N=500):
+def optimize_threshold(predictions, labels, metric="roc", *, N=500, min_sensitivity=None):
+    """
+    Optimize the threshold for the given metric of the predictions given the labels.
+
+    Args:
+        predictions: from .decision_function or .predict_proba
+        labels: true labels (-1 or 1)
+        metric:     - "roc": maximize the Youden's J statistic
+                    - "f1": maximize the F1 score
+                    - "pr": maximize the precision-recall curve, same as "f1"
+                    - "f2": maximize the F2 score
+                    - "f3": maximize the F3 score
+                    - "sensitivity": maximize sensitivity or maximize precision for a given sensitivity
+        N: (optional) number of thresholds to evaluate, default 500, TODO: use this
+        min_sensitivity: (optional) minimum sensitivity to maximize precision for, default None
+
+    Returns:
+        float: the optimized threshold
+    """
     if metric == "roc":
         fpr, tpr, thresholds = roc_curve(labels, predictions)
-        bias = thresholds[np.argmax(tpr - fpr)]  # using Youden's J statistic
-        bias = -bias
+        return thresholds[np.argmax(tpr - fpr)]  # using Youden's J statistic
 
     elif metric == "f1" or metric == "f2" or metric == "pr" or metric == "f3":
         precision, recall, thresholds = precision_recall_curve(
@@ -130,14 +147,38 @@ def optimize_bias(predictions, labels, metric="roc", *, N=500):
             fscore = 5 * precision * recall / (4 * precision + recall)
         elif metric == "f3":
             fscore = 10 * precision * recall / (9 * precision + recall)
-        bias = thresholds[np.argmax(fscore)]
+        return thresholds[np.argmax(fscore)]
 
-        # assert np.isclose(
-        #     f1_score(labels, np.sign(predictions - bias) + (predictions - bias == 0)),
-        #     np.max(fscore),
-        # )
-        bias = -bias
-    return bias
+    elif metric == "sensitivity":
+        precision, recall, thresholds = precision_recall_curve(
+            labels, predictions, drop_intermediate=True
+        )
+        # get indices of zero and nan values
+        zero_idx = np.where(precision <= 1e-5)[0]
+        nan_idx = np.where(np.isnan(precision))[0]
+        # remove zero and nan values
+        precision = np.delete(precision, np.concatenate((zero_idx, nan_idx)))
+        recall = np.delete(recall, np.concatenate((zero_idx, nan_idx)))
+        thresholds = np.delete(thresholds, np.concatenate((zero_idx, nan_idx)))
+        if min_sensitivity is None:
+            # maximize sensitivity
+            return thresholds[np.argmax(recall)]
+
+        else:
+            # maximize precision for a given sensitivity
+            idx = np.where(recall >= min_sensitivity)[0]
+            if len(idx) == 0:
+                return thresholds[np.argmax(recall)]
+            else:
+                thresholds = thresholds[idx]
+                precision = precision[idx]
+                return thresholds[np.argmax(precision)]
+    else:
+        raise ValueError("Invalid metric.")
+
+
+def optimize_bias(predictions, labels, metric="roc", *, N=500, min_sensitivity=None):
+    return -optimize_threshold(predictions, labels, metric, N=N, min_sensitivity=min_sensitivity)
 
 
 if __name__ == "__main__":

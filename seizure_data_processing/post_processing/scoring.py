@@ -186,7 +186,7 @@ def labels_to_events(predicted_labels,
     # include del
     # create a full time index for all the start times
     step = seglen * (1 - overlap)   # time between two consecutive segments
-    time_index = np.arange(0, total_duration - seglen, step)
+    time_index = np.arange(0, total_duration - seglen + step, step)
     # get indices of the start times of labelled samples
     start_indices = np.searchsorted(time_index, start_time)
     # initialize the labels to include the removed segments
@@ -207,7 +207,7 @@ def labels_to_events(predicted_labels,
             seiz_stop.append(time_index[k])
 
     if not to_dataframe:
-        return seiz_start, seiz_stop
+        return [(seiz_start[i], seiz_stop[i]) for i in range(len(seiz_start))]
     else:
         events = pd.DataFrame({"start_time": seiz_start, "stop_time": seiz_stop, "annotation": "seiz"})
         if to_file:

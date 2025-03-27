@@ -106,7 +106,7 @@ class SeizureClassifier:
             warnings.warn("Dataset not set.")
 
         if (
-            self.model_type == "PS" or self.model_type == "PF"
+            self.model_type == "PS" or self.model_type == "LOSI"
         ) and self.patient is None:
             warnings.warn("Patient not set.")
 
@@ -156,6 +156,8 @@ class SeizureClassifier:
                 hyperparams.append(
                     {f"clf__{key}": param_dict[key] for key in param_dict.keys()}
                 )
+        elif self.hyperparams is None:
+            hyperparams = self.hyperparams
         else:
             raise ValueError("Hyperparameters not recognized.")
 
@@ -191,7 +193,6 @@ class SeizureClassifier:
         mode="train",
         annotation_column="annotation",
     ):
-        #TODO: add option to select specifc features by name
         feat_df, group_df = get_features(
             self.feature_file,
             self.group_file,
@@ -203,6 +204,7 @@ class SeizureClassifier:
         feat_df.set_index("index", inplace=True)
         group_df = group_df.sort_values("index")
         group_df.set_index("index", inplace=True)
+        assert np.array_equal(feat_df.index, group_df.index), "Indices do not match."
 
         if delete_pre_post_ictal:
             feat_df = feat_df.loc[
@@ -210,7 +212,7 @@ class SeizureClassifier:
             ]
             group_df = group_df.loc[feat_df.index]
         if mode == "train":
-            # only select features that contain the train flag
+            # only select ann_df that contain the train flag
             idx_train = group_df["train"] == True
             feat_df = feat_df.loc[idx_train, :]
             group_df = group_df.loc[idx_train, :]
@@ -220,7 +222,7 @@ class SeizureClassifier:
                 self.cv_obj = LeavePGroupsOut(n_groups=n_groups-1)
 
         elif mode == "test":
-            # only select features that contain the test flag
+            # only select ann_df that contain the test flag
             idx_test = group_df["test"] == True
             feat_df = feat_df.loc[idx_test, :]
             group_df = group_df.loc[idx_test, :]
@@ -256,9 +258,8 @@ class SeizureClassifier:
         else:
             n_jobs = self.n_jobs
 
-
-        if self.grid_search.casefold() == "on-test".casefold():
-
+        if self.grid_search.casefold() == "on-test".casefold() and not not self.hyperparams:    # if hyperparams are
+            # set and grid search is on-test, perform grid search
             gridsearch = GridSearchCV(
                 self.pipeline,
                 self.hyperparams,
@@ -323,7 +324,8 @@ class SeizureClassifier:
 
         return self
 
-    def predict(self, feature_file, group_file, *, mode='test', annotation_column='annotation', batch_size=1024):
+    def predict(self, feature_file, group_file, *, mode='test', annotation_column='annotation', batch_size=1024,
+                refit_scaler=False):
 
         feat_df, group_df = get_features(feature_file, group_file, cv_type=self.model_type, patient_id=self.patient)
         # TODO: fix/test this for the patient-finetuned case and make it more legible
@@ -340,7 +342,7 @@ class SeizureClassifier:
             group_idx = group_df['index'].to_numpy()
             feat_df.loc[feat_df['index'].isin(group_idx), group_col] = group_df.loc[group_df['index'].isin(
                 group_idx), group_col].to_numpy()
-            # feat_df[group_col[0]] = group_df.hemisphere[:, group_col[0]].copy()
+            # ann_df[group_col[0]] = group_df.hemisphere[:, group_col[0]].copy()
             del group_df
 
         # predict on test or train data (dataframe should contain 'test' and 'train' columns)
@@ -377,8 +379,6 @@ class SeizureClassifier:
             extra_cols = ['estimator','predicted_output', 'predicted_label']
             # columns to keep in the output dataframe
 
-            #TODO: make use of predict_groups function and use output to create new output_df with overlapping
-            # indices due to the LOSI cross validation.
             if self.crossval_type == 'LOSI':
                 cv_obj = LeavePGroupsOut(n_groups=len(unique_groups)-1)
             else:
@@ -395,6 +395,8 @@ class SeizureClassifier:
             ):
                 # group_outputs = pd.DataFrame(columns=output_cols)
                 feats = features[test_idx, :]
+                if refit_scaler:
+                    self.estimator[i].named_steps['scaler'].fit(feats)
                 predictions = self.estimator[i].decision_function(feats)
                 indices = index_group[test_idx]     # get the "absolute" indices, not the "relative" indices
                 group_outputs = feat_df.loc[indices, output_cols].copy()
@@ -487,6 +489,8 @@ class SeizureClassifier:
         group_file=None,
         total_duration=None,
         temp_dir="temp/",
+        save_cv_obj=False,
+        add_to_run_name=""
     ):
         import seizure_data_processing.classification.mlflow_utils as mutils
         from mlflow_utils import infer_signature
@@ -504,6 +508,7 @@ class SeizureClassifier:
             cross_val_type=self.crossval_type,
             patient=self.patient,
         )
+        run_name = run_name + add_to_run_name
         experiment_id = mutils.set_up_experiment(tracking_url, experiment_name)
         signature = infer_signature(self.features, self.labels)
 
@@ -527,6 +532,7 @@ class SeizureClassifier:
             temp_dir=temp_dir,
             crossval_type=self.crossval_type,
             hyperparams=self.hyperparams,
+            save_cv_obj=save_cv_obj,
         )
         return
 
@@ -602,7 +608,7 @@ def classify(
 
     Args:
         clf (sklearn classifier): classifier to use
-        features (np.ndarray): features to use
+        features (np.ndarray): ann_df to use
         labels (np.ndarray): labels [-1,1]
         groups (np.ndarray): seizure groups
         hyperparams (dict): hyperparameters for grid search, e.g. {"C": [1,10], "gamma": ["scale"], "kernel": ["rbf"]}
@@ -671,9 +677,9 @@ def predict_groups(
 
     Args:
         estimators (list): list of estimators, sklearn classifiers
-        features (np.ndarray): features set, shape (n_samples, n_features)
+        features (np.ndarray): ann_df set, shape (n_samples, n_features)
         groups (np.ndarray): group ids, shape (n_samples,)
-        labels (bool): true labels corresponding to the features
+        labels (bool): true labels corresponding to the ann_df
         concat (bool): default True, if True concatenate predictions to one array of shape (n_samples,), else return
         list of predictions for each group.
 
@@ -689,9 +695,9 @@ def predict_groups(
     #
     # group_features = []
     # group_idx = []
-    # for i, group_id in enumerate(np.unique(groups)):  # separate features by group
+    # for i, group_id in enumerate(np.unique(groups)):  # separate ann_df by group
     #     group_idx.append(np.where(groups == group_id))
-    #     group_features.append(features[group_idx[i]])
+    #     group_features.append(ann_df[group_idx[i]])
     predictions = {}
     predictions["group_id"] = []
     predictions["prediction"] = []
@@ -712,7 +718,7 @@ def predict_groups(
         else:
             predictions["index"].append(index[test_idx])
 
-    # del features  # free memory
+    # del ann_df  # free memory
     # # predict decision_function for each group
     # with mp.Pool() as pool:
     #     predictions = pool.starmap(
@@ -783,7 +789,7 @@ def remove_overlap_predictions(
     predictions: np.ndarray, feat_df: pd.DataFrame, group_df: pd.DataFrame
 ):
     """
-    Remove overlapped features from the predictions
+    Remove overlapped ann_df from the predictions
     Args:
         predictions (np.ndarray): predictions shape (n_samples,)
         feat_df (pd.DataFrame): feature dataframe with columns "index", "start_time", "stop_time"
@@ -797,16 +803,16 @@ def remove_overlap_predictions(
 
 
 def get_features(feature_file, group_file, cv_type="PS", *, patient_id=None):
-    """Get the features and groups for the given patient. Or all patients if patient_id cv_type is 'PI'.
+    """Get the ann_df and groups for the given patient. Or all patients if patient_id cv_type is 'PI'.
 
     Args:
-        feature_file (str): location of parquet file with features
+        feature_file (str): location of parquet file with ann_df
         group_file (str): location of parquet file with groups
         cv_type (str, optional): Cross-validation type, PS=patient-specific, PI=patient-independent. Defaults to 'PS'.
         patient_id (int, optional): ID of the patient (required for PS). Defaults to None.
 
     Returns:
-        tuple: (DataFrame with features, DataFrame with groups)
+        tuple: (DataFrame with ann_df, DataFrame with groups)
     """
 
     if (cv_type == "PS" or cv_type == "PF") and patient_id is not None:
@@ -855,7 +861,7 @@ def extract_feature_group_labels(
         annotation_column (str): default 'annotation', column name for the labels
 
     Returns:
-        np.ndarray: features, shape (n_samples, n_features)
+        np.ndarray: ann_df, shape (n_samples, n_features)
         np.ndarray: labels, shape (n_samples,)
         np.ndarray: groups, shape (n_samples,)
     """
@@ -981,7 +987,7 @@ def main(
     features, labels, groups = extract_feature_group_labels(
         feat_df, group_df, cv_type=cv_type, delim_feat_chan=delim_feat_chan
     )
-    if cv_type == "PF":
+    if cv_type == "LOSI":
         n_groups = np.unique(groups).shape[0]
         cv_obj = LeavePGroupsOut(n_groups=n_groups - 1)  # leave one group in
 
