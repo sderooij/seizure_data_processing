@@ -54,6 +54,7 @@ class SeizureClassifier:
         tags={},
         n_jobs=-1,
         verbose=0,
+        k_folds=5,
     ):
         self.classifier = classifier
         self.hyperparams = hyperparams
@@ -91,10 +92,7 @@ class SeizureClassifier:
 
         self._check_attributes()
 
-        if self.model_type == 'PF':
-            self._create_pipeline(k_folds=3)
-        else:
-            self._create_pipeline()
+        self._create_pipeline(k_folds=k_folds)
         # self._load_data(mode="train")
 
     def _check_attributes(self):
