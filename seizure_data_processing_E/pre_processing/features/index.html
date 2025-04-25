@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../../img/favicon.ico" />
+    <title>Features - Seizure_data_processing</title>
+    <link rel="stylesheet" href="../../../css/theme.css" />
+    <link rel="stylesheet" href="../../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Features";
+        var mkdocs_page_input_path = "seizure_data_processing_E\\pre_processing\\features.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../../.." class="icon icon-home"> Seizure_data_processing
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../..">Seizure_data_processing Index</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">seizure data processing E</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../../">Seizure Data Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../config/">Config</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" >Datasets</a>
+    <ul>
+                <li class="toctree-l2"><a class="reference internal" href="../../datasets/">Datasets</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../../datasets/helper_functions/">Helper Functions</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../../datasets/mit_chb/">Mit Chb</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../../datasets/tusz/">Tusz</a>
+                </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" >Pre processing</a>
+    <ul class="current">
+                <li class="toctree-l2"><a class="reference internal" href="../">Pre Processing</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../ecg/">Ecg</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../eeg/">EEG</a>
+                </li>
+                <li class="toctree-l2 current"><a class="reference internal current" href="#">Features</a>
+    <ul class="current">
+    <li class="toctree-l3"><a class="reference internal" href="#bandpass_filter">bandpass_filter</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#returns">Returns</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#signature">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#chunker">chunker</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_1">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#df_chunker">df_chunker</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_2">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#df_zero_crossings">df_zero_crossings</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#arguments">Arguments</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#returns_1">Returns</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_3">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#dwt_relative_power">dwt_relative_power</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#arguments_1">Arguments</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#raises">Raises</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#returns_2">Returns</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_4">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#dwt_transform">dwt_transform</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#arguments_2">Arguments</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_5">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#highpass_filter">highpass_filter</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#parameters_1">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#returns_3">Returns</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_6">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#line_length">line_length</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#arguments_3">Arguments</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#returns_4">Returns</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_7">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#mean_power">mean_power</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_8">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#normalize_feature">normalize_feature</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_9">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#number_max">number_max</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_10">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#number_min">number_min</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_11">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#number_zero_crossings">number_zero_crossings</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_12">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#rms">rms</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_13">Signature</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                </li>
+    </ul>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../..">Seizure_data_processing</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">seizure data processing E</li>
+          <li class="breadcrumb-item">Pre processing</li>
+      <li class="breadcrumb-item active">Features</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/sderooij/seizure_data_processing/edit/master/docs/seizure_data_processing_E/pre_processing/features.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="features">Features</h1>
+<p><a href="../../../#seizure_data_processing-index">Seizure_data_processing Index</a> /
+<a href="../../#seizure-data-processing">Seizure Data Processing</a> /
+<a href="../#pre-processing">Pre Processing</a> /
+Features</p>
+<blockquote>
+<p>Auto-generated documentation for <a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py">seizure_data_processing.pre_processing.features</a> module.</p>
+</blockquote>
+<ul>
+<li><a href="#features">Features</a></li>
+<li><a href="#bandpass_filter">bandpass_filter</a></li>
+<li><a href="#chunker">chunker</a></li>
+<li><a href="#df_chunker">df_chunker</a></li>
+<li><a href="#df_zero_crossings">df_zero_crossings</a></li>
+<li><a href="#dwt_relative_power">dwt_relative_power</a></li>
+<li><a href="#dwt_transform">dwt_transform</a></li>
+<li><a href="#highpass_filter">highpass_filter</a></li>
+<li><a href="#line_length">line_length</a></li>
+<li><a href="#mean_power">mean_power</a></li>
+<li><a href="#normalize_feature">normalize_feature</a></li>
+<li><a href="#number_max">number_max</a></li>
+<li><a href="#number_min">number_min</a></li>
+<li><a href="#number_zero_crossings">number_zero_crossings</a></li>
+<li><a href="#rms">rms</a></li>
+</ul>
+<h2 id="bandpass_filter">bandpass_filter</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py#L29">Show source in features.py:29</a></p>
+<p>filters the given signal x using a Butterworth bandpass filter</p>
+<h2 id="parameters">Parameters</h2>
+<p>x : ndarray
+    signal to filter
+fsamp : float
+    sampling frequency
+min_freq : float
+    cut-off frequency lower bound
+max_freq : float
+    cut-off frequency upper bound
+axis : int, optional
+    axis to filter, by default -1  (0 for filter along the row, 1 for along the columns)
+order : int, optional
+    order of Butterworth filter, by default 4</p>
+<h2 id="returns">Returns</h2>
+<p>ndarray
+    filtered_signal</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="language-python">def bandpass_filter(x, fsamp, min_freq, max_freq, axis=-1, order=4):
+    ...
+</code></pre>
+<h2 id="chunker">chunker</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py#L17">Show source in features.py:17</a></p>
+<p>chunker (with overlap) for numpy array</p>
+<h4 id="signature_1">Signature</h4>
+<pre><code class="language-python">def chunker(arr, size, overlap):
+    ...
+</code></pre>
+<h2 id="df_chunker">df_chunker</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py#L23">Show source in features.py:23</a></p>
+<p>chunker with overlap for dataframe</p>
+<h4 id="signature_2">Signature</h4>
+<pre><code class="language-python">def df_chunker(seq, size, overlap):
+    ...
+</code></pre>
+<h2 id="df_zero_crossings">df_zero_crossings</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py#L100">Show source in features.py:100</a></p>
+<p>number of zero crossings of the columns of a dataframe object</p>
+<h4 id="arguments">Arguments</h4>
+<ul>
+<li><code>df</code></li>
+<li><code>col</code></li>
+</ul>
+<h4 id="returns_1">Returns</h4>
+<p>numpy array</p>
+<h4 id="signature_3">Signature</h4>
+<pre><code class="language-python">def df_zero_crossings(df, col=None):
+    ...
+</code></pre>
+<h2 id="dwt_relative_power">dwt_relative_power</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py#L166">Show source in features.py:166</a></p>
+<p>Calculate the relative power feature based on the DWT.</p>
+<h4 id="arguments_1">Arguments</h4>
+<ul>
+<li><code>data</code> <em>ndarray</em> - EEG data (1 channel only)</li>
+<li><code>epoch_size</code> <em>int</em> - length of epoch</li>
+<li><code>overlap</code> <em>int</em> - length of overlap epochs</li>
+<li><code>l</code> <em>float, optional</em> - lambda, forgetting factor. Defaults to 0.99923.</li>
+<li><code>N</code> <em>int, optional</em> - Memory index. Defaults to 120.</li>
+<li><code>wavelet</code> <em>str, optional</em> - Mother wavelet. Defaults to 'db4'.</li>
+<li><code>level</code> <em>int, optional</em> - Number of wavelet transform levels. Defaults to 4.</li>
+<li><code>axis</code> <em>int, optional</em> - axis on which to perform DWT. Defaults to 0.</li>
+</ul>
+<h4 id="raises">Raises</h4>
+<ul>
+<li><code>Exception</code> - If number of channels &gt; 1</li>
+</ul>
+<h4 id="returns_2">Returns</h4>
+<ul>
+<li><code>ndarray</code> - N_epochs x N_coef array</li>
+</ul>
+<h4 id="signature_4">Signature</h4>
+<pre><code class="language-python">def dwt_relative_power(
+    data, epoch_size, overlap, l=0.99923, N=120, wavelet=&quot;db4&quot;, level=4, axis=0
+):
+    ...
+</code></pre>
+<h2 id="dwt_transform">dwt_transform</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py#L149">Show source in features.py:149</a></p>
+<p>Discrete Time Wavelet transform of the bandpass-filtered data (0. - 50 Hz)</p>
+<h4 id="arguments_2">Arguments</h4>
+<p>data (ndarray):
+wavelet:
+level:
+axis:</p>
+<h4 id="signature_5">Signature</h4>
+<pre><code class="language-python">def dwt_transform(data, wavelet, level=4, axis=0):
+    ...
+</code></pre>
+<h2 id="highpass_filter">highpass_filter</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py#L64">Show source in features.py:64</a></p>
+<p>filters the given signal x using a Butterworth bandpass filter</p>
+<h2 id="parameters_1">Parameters</h2>
+<p>x : ndarray
+    signal to filter
+fsamp : float
+    sampling frequency
+min_freq : float
+    cut-off frequency lower bound
+axis : int, optional
+    axis to filter, by default -1  (0 for filter along the row, 1 for along the columns)
+order : int, optional
+    order of Butterworth filter, by default 4</p>
+<h2 id="returns_3">Returns</h2>
+<p>ndarray
+    filtered_signal</p>
+<h4 id="signature_6">Signature</h4>
+<pre><code class="language-python">def highpass_filter(x, fsamp, min_freq, axis=-1, order=4):
+    ...
+</code></pre>
+<h2 id="line_length">line_length</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py#L215">Show source in features.py:215</a></p>
+<p>Calculate the line length feature.</p>
+<h4 id="arguments_3">Arguments</h4>
+<ul>
+<li><code>x</code> <em>ndarray</em> - Data epoch (N, N_chan)</li>
+<li><code>axis</code> <em>int, optional</em> - axis along which to calculate the feature. Defaults to 0.</li>
+</ul>
+<h4 id="returns_4">Returns</h4>
+<ul>
+<li><code>ndarray</code> - (N_chan,) array with the line length(s)</li>
+</ul>
+<h4 id="signature_7">Signature</h4>
+<pre><code class="language-python">def line_length(x, axis=0):
+    ...
+</code></pre>
+<h2 id="mean_power">mean_power</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py#L144">Show source in features.py:144</a></p>
+<h4 id="signature_8">Signature</h4>
+<pre><code class="language-python">def mean_power(f, Pxx_den, min_freq, max_freq):
+    ...
+</code></pre>
+<h2 id="normalize_feature">normalize_feature</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py#L230">Show source in features.py:230</a></p>
+<h4 id="signature_9">Signature</h4>
+<pre><code class="language-python">def normalize_feature(feature, method=&quot;standard&quot;, epoch_time=2, buffer=120, labda=0.92):
+    ...
+</code></pre>
+<h2 id="number_max">number_max</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py#L123">Show source in features.py:123</a></p>
+<h4 id="signature_10">Signature</h4>
+<pre><code class="language-python">def number_max(x):
+    ...
+</code></pre>
+<h2 id="number_min">number_min</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py#L114">Show source in features.py:114</a></p>
+<h4 id="signature_11">Signature</h4>
+<pre><code class="language-python">def number_min(x):
+    ...
+</code></pre>
+<h2 id="number_zero_crossings">number_zero_crossings</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py#L92">Show source in features.py:92</a></p>
+<h4 id="signature_12">Signature</h4>
+<pre><code class="language-python">def number_zero_crossings(x):
+    ...
+</code></pre>
+<h2 id="rms">rms</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/pre_processing/features.py#L132">Show source in features.py:132</a></p>
+<h4 id="signature_13">Signature</h4>
+<pre><code class="language-python">def rms(x, axis=None):
+    ...
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../eeg/" class="btn btn-neutral float-left" title="EEG"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/sderooij/seizure_data_processing" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../eeg/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+  </span>
+</div>
+    <script src="../../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../../..";</script>
+    <script src="../../../js/theme_extra.js"></script>
+    <script src="../../../js/theme.js"></script>
+      <script src="../../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

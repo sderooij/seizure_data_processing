@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../../img/favicon.ico" />
+    <title>Tusz - Seizure_data_processing</title>
+    <link rel="stylesheet" href="../../../css/theme.css" />
+    <link rel="stylesheet" href="../../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Tusz";
+        var mkdocs_page_input_path = "seizure_data_processing_E\\datasets\\tusz.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../../.." class="icon icon-home"> Seizure_data_processing
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../..">Seizure_data_processing Index</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">seizure data processing E</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../../">Seizure Data Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../config/">Config</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" >Datasets</a>
+    <ul class="current">
+                <li class="toctree-l2"><a class="reference internal" href="../">Datasets</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../helper_functions/">Helper Functions</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../mit_chb/">Mit Chb</a>
+                </li>
+                <li class="toctree-l2 current"><a class="reference internal current" href="#">Tusz</a>
+    <ul class="current">
+    <li class="toctree-l3"><a class="reference internal" href="#get_duration_tse">get_duration_tse</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#arguments">Arguments</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#signature">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#load_annotations">load_annotations</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#arguments_1">Arguments</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#returns">Returns</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_1">Signature</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#load_tse">load_tse</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#arguments_2">Arguments</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#signature_2">Signature</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" >Pre processing</a>
+    <ul>
+                <li class="toctree-l2"><a class="reference internal" href="../../pre_processing/">Pre Processing</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../../pre_processing/ecg/">Ecg</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../../pre_processing/eeg/">EEG</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../../pre_processing/features/">Features</a>
+                </li>
+    </ul>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../..">Seizure_data_processing</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">seizure data processing E</li>
+          <li class="breadcrumb-item">Datasets</li>
+      <li class="breadcrumb-item active">Tusz</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/sderooij/seizure_data_processing/edit/master/docs/seizure_data_processing_E/datasets/tusz.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="tusz">Tusz</h1>
+<p><a href="../../../#seizure_data_processing-index">Seizure_data_processing Index</a> /
+<a href="../../#seizure-data-processing">Seizure Data Processing</a> /
+<a href="../#datasets">Datasets</a> /
+Tusz</p>
+<blockquote>
+<p>Auto-generated documentation for <a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/datasets/tusz.py">seizure_data_processing.datasets.tusz</a> module.</p>
+</blockquote>
+<ul>
+<li><a href="#tusz">Tusz</a></li>
+<li><a href="#get_duration_tse">get_duration_tse</a></li>
+<li><a href="#load_annotations">load_annotations</a></li>
+<li><a href="#load_tse">load_tse</a></li>
+</ul>
+<h2 id="get_duration_tse">get_duration_tse</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/datasets/tusz.py#L74">Show source in tusz.py:74</a></p>
+<p>function: loadTSE Load seizure events from a TSE file.</p>
+<h4 id="arguments">Arguments</h4>
+<ul>
+<li><code>tse</code> - TSE event file</li>
+</ul>
+<p>return:
+  stop_time (s), float</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="language-python">def get_duration_tse(tse_file: str):
+    ...
+</code></pre>
+<h2 id="load_annotations">load_annotations</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/datasets/tusz.py#L103">Show source in tusz.py:103</a></p>
+<p>load annotations and output as a pandas dataframe.</p>
+<h4 id="arguments_1">Arguments</h4>
+<ul>
+<li><code>file</code> <em>str</em> - edf file to annotate</li>
+</ul>
+<h4 id="returns">Returns</h4>
+<ul>
+<li><code>pd.DataFrame</code> - with columns [start_time, stop_time, seizure_type, probability]</li>
+</ul>
+<h4 id="signature_1">Signature</h4>
+<pre><code class="language-python">def load_annotations(file: str) -&gt; pd.DataFrame:
+    ...
+</code></pre>
+<h2 id="load_tse">load_tse</h2>
+<p><a href="https://github.com/sderooij/seizure_data_processing/blob/main/seizure_data_processing/datasets/tusz.py#L12">Show source in tusz.py:12</a></p>
+<p>function: loadTSE Load seizure events from a TSE file.</p>
+<h4 id="arguments_2">Arguments</h4>
+<ul>
+<li><code>tse_file</code> - TSE event file</li>
+<li><code>dataframe</code> <em>bool</em> - output as dataframe. Default to False.</li>
+</ul>
+<p>return:
+  - <code>seizures</code> - output list of seizures. Each event is tuple of 4 items:
+             (seizure_start [s], seizure_end [s], seizure_type, probability)</p>
+<h4 id="signature_2">Signature</h4>
+<pre><code class="language-python">def load_tse(tse_file: str, dataframe: bool = False):
+    ...
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../mit_chb/" class="btn btn-neutral float-left" title="Mit Chb"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../../pre_processing/" class="btn btn-neutral float-right" title="Pre Processing">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/sderooij/seizure_data_processing" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../mit_chb/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../../pre_processing/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../../..";</script>
+    <script src="../../../js/theme_extra.js"></script>
+    <script src="../../../js/theme.js"></script>
+      <script src="../../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
