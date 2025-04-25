@@ -783,23 +783,6 @@ def score_from_predictions(predictions, labels, groups, scorers=None):
     return df_scores
 
 
-def remove_overlap_predictions(
-    predictions: np.ndarray, feat_df: pd.DataFrame, group_df: pd.DataFrame
-):
-    """
-    Remove overlapped ann_df from the predictions
-    Args:
-        predictions (np.ndarray): predictions shape (n_samples,)
-        feat_df (pd.DataFrame): feature dataframe with columns "index", "start_time", "stop_time"
-        group_df (pd.DataFrame): group dataframe with columns "index", "group_id"
-
-    Returns:
-        np.ndarray: predictions without overlap, shape < (n_samples,)
-    """
-    # TODO: implement this
-    raise NotImplementedError
-
-
 def get_features(feature_file, group_file, cv_type="PS", *, patient_id=None):
     """Get the ann_df and groups for the given patient. Or all patients if patient_id cv_type is 'PI'.
 

@@ -18,7 +18,6 @@ from imblearn.under_sampling import RandomUnderSampler
 from imblearn.pipeline import Pipeline as ImbPipeline
 from seizure_data_processing.post_processing.post_process import optimize_bias
 from seizure_data_processing.post_processing.scoring import event_scoring
-from tensorlibrary.learning.active import BaseActiveLearnClassifier
 import cloudpickle
 
 
@@ -304,6 +303,7 @@ def log_group_run(
         None
 
     """
+    from tensorlibrary.learning.active import BaseActiveLearnClassifier
     if model_type == "PS" or model_type == "PF":
         run_name = f"{classifier_name}_{model_type}_{patient}_{group_id}"
     else:
@@ -466,33 +466,8 @@ def log_parent_run(
             else:
                 continue
 
-        # for key in val_dict.keys():
-        #     if key not in ["estimator", "experiment_id", "indices"]:
-        #         if isinstance(val_dict[key], np.ndarray):
-        #             mlflow.log_metric(f"{key}_mean", np.mean(val_dict[key]))
-        #             mlflow.log_metric(f"{key}_std", np.std(val_dict[key]))
-        #         else:
-        #             continue
-        # TODO add ROC and PR curves
-        # save the models, outputs and performance of the groups
-        # unique_groups = np.unique(groups)
-
-        # log group runs
-
         if child_runs:
-            # log_child_run = partial(
-            #     log_group_run,
-            #     model_type=model_type,
-            #     classifier_name=classifier_name,
-            #     patient=patient,
-            #     tags=tags,
-            #     ann_df=ann_df,
-            #     labels=labels,
-            #     metrics=metrics,
-            #     groups=groups,
-            # )
-            # with Pool() as pool:
-            #     predictions = pool.starmap(log_child_run, zip(val_dict["estimator"], unique_groups))
+
             if crossval_type == "LOPO" or crossval_type == "LOSO":
                 log_group_runs(
                     val_dict,
@@ -520,17 +495,6 @@ def log_parent_run(
                         val_dict["groups"][i],
                         signature,
                     )
-            # predictions = np.concatenate(predictions)
-            # scores = event_scoring(
-            #     np.sign(predictions[:, 0]),
-            #     predictions[:, 1],
-            #     overlap=0.5,
-            #     seglen=2,
-            #     arp=10.0,
-            #     min_duration=10.0,
-            #     pos_percent=0.8,
-            # )
 
-        # mlflow.log_metrics(scores["overall"])
 
     return None

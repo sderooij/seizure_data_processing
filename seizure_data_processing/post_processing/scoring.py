@@ -9,25 +9,6 @@ import collections
 from sklearn.metrics import get_scorer
 import pandas as pd
 
-class SeizureScorer:
-    def __init__(self, predictions, metrics, feature_file, *, columns=None):
-        self.metrics = metrics
-        self.feature_file = feature_file
-        self.prediction_df = None
-        self._load_feature_info(columns=columns)
-        self.prediction_df['predictions'] = predictions
-
-    def _load_feature_info(self, *, columns=None):
-        if columns is None:
-            columns = ['start_time', 'stop_time', 'filename', 'annotation', 'neurologist_annotation']
-        self.prediction_df = pd.read_parquet(self.feature_file, columns=columns)
-        return self
-
-    def save_to_events(self, save_folder, *, arp=10, pos_percent=0.8, min_duration=10.0, sample_duration=2.0,
-                       overlap=0.5):
-        return self
-
-
 def chunker(seq, size):
     return (seq[pos : pos + size] for pos in range(0, len(seq), size))
 
