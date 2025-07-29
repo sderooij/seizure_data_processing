@@ -258,10 +258,12 @@ class SeizureClassifier:
             X_test = self.features[test_idx,:]
             y_test = self.labels[test_idx]
             model.fit(X_train, y_train, clf__x_target=X_test)
-            y_pred = model.predict(X_test)
-            test_score = scorer(y_test, y_pred)
-            train_score = scorer(X_train, y_train)
-            group = np.unique(groups[test_idx])
+            # y_pred = model.predict(X_test)
+            test_score = scorer(model, X_test, y_test)
+            train_score = scorer(model, X_train, y_train)
+            group = np.unique(self.groups[test_idx])
+            if len(group) == 1:
+                group = group[0]
 
             val_dict["estimator"].append(deepcopy(model.best_estimator_))
             val_dict[test_score_name].append(test_score)
@@ -624,6 +626,12 @@ def get_classifier(classifier_name):
         from tensorlibrary.learning.t_krr import CPKRR
 
         clf = CPKRR()
+    elif classifier_name == "CPKRR_LMPROJ":
+        from tensorlibrary.learning.transfer import CPKRR_LMPROJ
+        clf = CPKRR_LMPROJ()
+    elif classifier_name == "SVC_LMPROJ":
+        from tensorlibrary.learning.transfer import SVC_LMPROJ
+        clf = SVC_LMPROJ()
     else:
         raise ValueError("Classifier name not recognized")
     return clf
@@ -854,7 +862,7 @@ def get_features(feature_file, group_file, cv_type="PS", *, patient_id=None):
                 group_file, filters=[("patient", "=", patient_id)]
             ).sort_values("index")
 
-    elif cv_type == "PI":
+    elif cv_type == "PI" or cv_type == "PT":
         feat_df = pd.read_parquet(feature_file).sort_values("index")
         if feature_file == group_file:
             group_df = feat_df.copy(deep=False)
@@ -896,7 +904,7 @@ def extract_feature_group_labels(
         group_col = [col for col in group_df.columns if "group" in col.lower()]
         if len(group_col) == 0:
             group_col = [col for col in group_df.columns if "patient" in col.lower()]
-    elif cv_type == "PI":
+    elif cv_type == "PI" or cv_type == "PT":
         group_col = [col for col in group_df.columns if "patient" in col.lower()]
 
     assert len(group_col) == 1
