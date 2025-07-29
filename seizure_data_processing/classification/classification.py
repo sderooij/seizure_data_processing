@@ -69,6 +69,7 @@ class SeizureClassifier:
             self.crossval_type = "LOSI"
         else:
             self.crossval_type = "LOPO"
+
         self.grid_search_scoring = grid_search_scoring
         self.grid_search = grid_search
         self.n_jobs = n_jobs
@@ -237,6 +238,42 @@ class SeizureClassifier:
         self.groups = groups
         return self
 
+    def _cross_validate_lmproj(self):
+        """
+        Cross validate for using the LMPROJ models, with x_target in fit function.
+        :return: Cross validation results in val_dict
+        """
+        train_score_name = f"train_{self.grid_search_scoring}"
+        test_score_name = f"test_{self.grid_search_scoring}"
+
+        val_dict = {"estimator": [], test_score_name: [], train_score_name: [], "indices": {'train': [], 'test': []}, "group": []}
+        scorer = get_scorer(self.grid_search_scoring)
+        self.estimator = {}
+
+        for i, (train_idx, test_idx) in enumerate(
+                self.cv_obj.split(X=self.features, y=self.labels, groups=self.groups)):
+            model = clone(self.pipeline)
+            X_train = self.features[train_idx,:]
+            y_train = self.labels[train_idx]
+            X_test = self.features[test_idx,:]
+            y_test = self.labels[test_idx]
+            model.fit(X_train, y_train, clf__x_target=X_test)
+            y_pred = model.predict(X_test)
+            test_score = scorer(y_test, y_pred)
+            train_score = scorer(X_train, y_train)
+            group = np.unique(groups[test_idx])
+
+            val_dict["estimator"].append(deepcopy(model.best_estimator_))
+            val_dict[test_score_name].append(test_score)
+            val_dict[train_score_name].append(train_score)
+            val_dict["indices"]['train'].append(train_idx.copy())
+            val_dict["indices"]['test'].append(test_idx.copy())
+            val_dict["group"].append(group)
+
+            self.estimator[str(group)] = deepcopy(model.best_estimator_)
+
+        self.crossval_output = val_dict
+
     def cross_validate(self, *, feature_file=None, group_file=None, annotation_column="annotation"):
         if feature_file is not None:
             self.feature_file = feature_file
@@ -283,6 +320,10 @@ class SeizureClassifier:
                 val_dict["indices"]['train'].append(train_idx.copy())
                 val_dict["indices"]['test'].append(test_idx.copy())
 
+        elif self.model_type == "PT":       # transductive cross validation, x_target in fit function.
+            self._cross_validate_lmproj()
+            return self
+
         else:
             val_dict = cross_validate(
                 estimator=self.pipeline,
@@ -327,7 +368,7 @@ class SeizureClassifier:
 
         feat_df, group_df = get_features(feature_file, group_file, cv_type=self.model_type, patient_id=self.patient)
         # TODO: fix/test this for the patient-finetuned case and make it more legible
-        if self.model_type == 'PI':
+        if self.model_type == 'PI' or self.model_type == 'PT':
             group_col = [col for col in feat_df.columns if 'patient' in col.lower()][0]
         elif self.model_type == 'PS' or self.model_type == 'PF':
             group_col = [col for col in feat_df.columns if 'group' in col.lower()][0]
@@ -353,7 +394,7 @@ class SeizureClassifier:
 
         feat_cols = [col for col in feat_df.columns if '|' in col]  # TODO: change to DELIM_FEAT_CHAN
         unique_groups = np.unique(feat_df[group_col])
-        if self.model_type == 'PS' or self.model_type == 'PI':
+        if self.model_type == 'PS' or self.model_type == 'PI' or self.model_type == 'PT':
             # check with estimator groups
             est_groups = np.array(list(self.estimator.keys()))
             unique_groups = np.intersect1d(unique_groups, est_groups)
