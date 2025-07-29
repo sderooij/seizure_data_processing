@@ -12,7 +12,7 @@ import h5py
 from pathlib import Path
 
 # internal libraries
-from seizure_data_processing.datasets import mit_chb as chb
+from seizure_data_processing.datasets import mit_chb as chb, bids
 from seizure_data_processing.datasets import tusz, seize_it
 from seizure_data_processing.pre_processing import features as ff
 
@@ -47,6 +47,8 @@ class EEG:
             self._dataset = "tusz"
         elif "P_ID" in filename:
             self._dataset = "seize-it"
+        elif "sub-" in filename:
+            self._dataset = 'bids'
         else:
             self._dataset = dataset
         # self.annotate()
@@ -224,6 +226,8 @@ class EEG:
             self.annotations = tusz.load_annotations(self.filename)
         elif self._dataset == "seize-it":
             self.annotations = seize_it.load_annotations(self.filename, **kwargs)
+        elif self._dataset == "bids" or self._dataset == "seizeit2":
+            self.annotations = bids.load_annotations(self.filename, **kwargs)
         else:
             raise Exception("Dataset not supported for annotation.")
 

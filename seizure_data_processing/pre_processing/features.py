@@ -309,9 +309,11 @@ def sample_entropy(x, axis=0):
     Returns:
         ndarray: (N_chan,) array with the sample entropy
     """
+    def sam_entr_with_flatten(a):
+        return ant.sample_entropy(a.flatten(), order=2, metric="chebyshev")
 
     return np.apply_along_axis(
-        ant.sample_entropy, axis=axis, arr=x, order=2, metric="chebyshev"
+        sam_entr_with_flatten, axis=axis, arr=x,
     )
 
 
