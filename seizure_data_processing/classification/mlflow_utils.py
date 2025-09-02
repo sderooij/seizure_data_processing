@@ -262,7 +262,7 @@ def generate_run_name(
     """
     if model_type == "PS":
         run_name = f"{classifier_name}_{model_type}_{cross_val_type}_{patient}_{int(time.time())}"
-    elif model_type == "PI" or (model_type == "LOSI" and cross_val_type=='AL'):
+    elif model_type == "PI" or (model_type == "LOSI" and cross_val_type=='AL') or model_type == "PT":
         run_name = f"{classifier_name}_{model_type}_{cross_val_type}_{int(time.time())}"
     elif model_type == "PF" and cross_val_type=='LOSI':
         t = int(time.time())
@@ -316,7 +316,7 @@ def log_group_run(
         # Log the tags
         tags = tags.copy()
         tags["group"] = group_id  # TODO: check that these correspond to the estimator
-        if model_type == "PI":
+        if model_type == "PI" or model_type == "PT":
             tags["patient"] = group_id
         else:
             tags["patient"] = patient
