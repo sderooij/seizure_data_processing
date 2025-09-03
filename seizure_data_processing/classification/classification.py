@@ -121,11 +121,13 @@ class SeizureClassifier:
         if not hasattr(self.classifier, "fit"):
             warnings.warn("Classifier does not have a fit method.")
         # check that hyperparameters are valid (correspond to classifier)
-        pars = self.classifier.get_params()
-        if isinstance(self.hyperparams, dict):
-            for key in self.hyperparams.keys():
-                if key not in pars:
-                    warnings.warn(f"{key} not in classifier hyperparameters.")
+        # pars = self.classifier.get_params()
+        # if isinstance(self.hyperparams, dict):
+        #     if
+        #
+        #     for key in self.hyperparams.keys():
+        #         if key not in pars:
+        #             warnings.warn(f"{key} not in classifier hyperparameters.")
 
         return
 
@@ -145,6 +147,10 @@ class SeizureClassifier:
         return self
 
     def _set_grid_search(self, *, k_folds=5):
+
+        if self.grid_search.casefold() == "pre-set":
+            return self
+
         if isinstance(self.hyperparams, dict):
             hyperparams = {
                 f"clf__{key}": self.hyperparams[key] for key in self.hyperparams.keys()
@@ -252,29 +258,69 @@ class SeizureClassifier:
 
         for i, (train_idx, test_idx) in enumerate(
                 self.cv_obj.split(X=self.features, y=self.labels, groups=self.groups)):
+            group = np.unique(self.groups[test_idx])
+            if len(group) == 1:
+                group = group[0]
             model = clone(self.pipeline)
-            X_train = self.features[train_idx,:]
-            y_train = self.labels[train_idx]
-            X_test = self.features[test_idx,:]
+            if self.grid_search.casefold() == "pre-set":
+                model.set_params(**self.hyperparams[group])
+            X_train = self.features[train_idx,:].copy()
+            y_train = self.labels[train_idx].copy()
+            X_test = self.features[test_idx,:].copy()
             y_test = self.labels[test_idx]
             model.fit(X_train, y_train, clf__x_target=X_test)
             # y_pred = model.predict(X_test)
             test_score = scorer(model, X_test, y_test)
             train_score = scorer(model, X_train, y_train)
-            group = np.unique(self.groups[test_idx])
-            if len(group) == 1:
-                group = group[0]
 
-            val_dict["estimator"].append(deepcopy(model.best_estimator_))
             val_dict[test_score_name].append(test_score)
             val_dict[train_score_name].append(train_score)
             val_dict["indices"]['train'].append(train_idx.copy())
             val_dict["indices"]['test'].append(test_idx.copy())
             val_dict["group"].append(group)
-
-            self.estimator[str(group)] = deepcopy(model.best_estimator_)
+            if self.grid_search.casefold() == "pre-set":
+                val_dict["estimator"].append(deepcopy(model))
+                self.estimator[str(group)] = deepcopy(model)
+            else:
+                val_dict["estimator"].append(deepcopy(model.best_estimator_))
+                self.estimator[str(group)] = deepcopy(model.best_estimator_)
 
         self.crossval_output = val_dict
+
+    # def cross_validate_preset(self):
+    #     train_score_name = f"train_{self.grid_search_scoring}"
+    #     test_score_name = f"test_{self.grid_search_scoring}"
+    #
+    #     val_dict = {"estimator": [], test_score_name: [], train_score_name: [], "indices": {'train': [], 'test': []}, "group": []}
+    #     scorer = get_scorer(self.grid_search_scoring)
+    #     self.estimator = {}
+    #
+    #     for i, (train_idx, test_idx) in enumerate(
+    #             self.cv_obj.split(X=self.features, y=self.labels, groups=self.groups)):
+    #         model = clone(self.pipeline)
+    #         X_train = self.features[train_idx,:]
+    #         y_train = self.labels[train_idx]
+    #         X_test = self.features[test_idx,:]
+    #         y_test = self.labels[test_idx]
+    #         model.fit(X_train, y_train, clf__x_target=X_test)
+    #         # y_pred = model.predict(X_test)
+    #         test_score = scorer(model, X_test, y_test)
+    #         train_score = scorer(model, X_train, y_train)
+    #         group = np.unique(self.groups[test_idx])
+    #         if len(group) == 1:
+    #             group = group[0]
+    #
+    #         val_dict["estimator"].append(deepcopy(model.best_estimator_))
+    #         val_dict[test_score_name].append(test_score)
+    #         val_dict[train_score_name].append(train_score)
+    #         val_dict["indices"]['train'].append(train_idx.copy())
+    #         val_dict["indices"]['test'].append(test_idx.copy())
+    #         val_dict["group"].append(group)
+    #
+    #         self.estimator[str(group)] = deepcopy(model.best_estimator_)
+    #
+    #     self.crossval_output = val_dict
+    #     return
 
     def cross_validate(self, *, feature_file=None, group_file=None, annotation_column="annotation"):
         if feature_file is not None:
