@@ -456,7 +456,13 @@ class SeizureClassifier:
             for i, group in enumerate(unique_groups):
                 test_idx = output_df[output_df[group_col] == group].index
                 features = feat_df.loc[test_idx, feat_cols].to_numpy()
-                predictions = self.estimator[str(group)].decision_function(features)
+                # check if estimator has a predict_std method:
+                if hasattr(self.estimator[str(group)], 'decision_function_full'):
+                    predictions, std_predictions = self.estimator[str(group)].decision_function_full
+                    output_df.loc[test_idx, 'predicted_std'] = std_predictions
+                else:
+                    predictions = self.estimator[str(group)].decision_function(features)
+
                 output_df.loc[test_idx, 'predicted_output'] = predictions
                 output_df.loc[test_idx, 'predicted_label'] = np.sign(predictions)
 
@@ -484,9 +490,17 @@ class SeizureClassifier:
                 feats = features[test_idx, :]
                 if refit_scaler:
                     self.estimator[i].named_steps['scaler'].fit(feats)
-                predictions = self.estimator[i].decision_function(feats)
+
                 indices = index_group[test_idx]     # get the "absolute" indices, not the "relative" indices
                 group_outputs = feat_df.loc[indices, output_cols].copy()
+
+                if hasattr(self.estimator[i], 'decision_function_full'):
+                    predictions, std_predictions = self.estimator[i].decision_function_full(feats)
+                    # add std_predictions to output dataframe
+                    group_outputs['predicted_std'] = std_predictions
+                else:
+                    predictions = self.estimator[i].decision_function(feats)
+
                 group_outputs['predicted_output'] = predictions
                 group_outputs['predicted_label'] = np.sign(predictions)
                 group_outputs['estimator'] = i
@@ -678,6 +692,10 @@ def get_classifier(classifier_name):
     elif classifier_name == "SVC_LMPROJ":
         from tensorlibrary.learning.transfer import SVC_LMPROJ
         clf = SVC_LMPROJ()
+    elif classifier_name == "ARMD":
+        from armd.sklearn import ARMDClassifier
+        clf = ARMDClassifier()
+
     else:
         raise ValueError("Classifier name not recognized")
     return clf
