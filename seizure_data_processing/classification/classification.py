@@ -494,8 +494,9 @@ class SeizureClassifier:
                 indices = index_group[test_idx]     # get the "absolute" indices, not the "relative" indices
                 group_outputs = feat_df.loc[indices, output_cols].copy()
 
-                if hasattr(self.estimator[i], 'decision_function_full'):
-                    predictions, std_predictions = self.estimator[i].decision_function_full(feats)
+                if hasattr(self.estimator[i].named_steps['clf'], 'decision_function_full'):
+                    scaled_data = self.estimator[i].named_steps['scaler'].transform(feats)
+                    predictions, std_predictions = self.estimator[i].named_steps['clf'].decision_function_full(scaled_data)
                     # add std_predictions to output dataframe
                     group_outputs['predicted_std'] = std_predictions
                 else:
