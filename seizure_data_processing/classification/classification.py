@@ -457,8 +457,9 @@ class SeizureClassifier:
                 test_idx = output_df[output_df[group_col] == group].index
                 features = feat_df.loc[test_idx, feat_cols].to_numpy()
                 # check if estimator has a predict_std method:
-                if hasattr(self.estimator[str(group)], 'decision_function_full'):
-                    predictions, std_predictions = self.estimator[str(group)].decision_function_full
+                if hasattr(self.estimator[str(group)].named_steps['clf'], 'decision_function_full'):
+                    scaled_data = self.estimator[str(group)].named_steps['scaler'].transform(features)
+                    predictions, std_predictions = self.estimator[str(group)].named_steps['clf'].decision_function_full(scaled_data)
                     output_df.loc[test_idx, 'predicted_std'] = std_predictions
                 else:
                     predictions = self.estimator[str(group)].decision_function(features)
